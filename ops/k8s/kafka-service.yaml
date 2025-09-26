@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: C:\Users\Acer\.local\bin\kompose.exe convert -f studyhub/ops/docker-compose.dev.yml -o k8s/ --namespace studyhub-dev --controller deployment --volumes persistentVolumeClaim
+    kompose.version: 1.37.0 (fb0539e64)
+  labels:
+    io.kompose.service: kafka
+  name: kafka
+  namespace: studyhub-dev
+spec:
+  ports:
+    - name: "9092"
+      port: 9092
+      targetPort: 9092
+    - name: "29092"
+      port: 29092
+      targetPort: 29092
+  selector:
+    io.kompose.service: kafka

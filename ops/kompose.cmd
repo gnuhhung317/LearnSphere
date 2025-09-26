@@ -1,0 +1,1 @@
+kompose convert -f studyhub/ops/docker-compose.dev.yml -o k8s/    --namespace studyhub-dev --controller deployment --volumes persistentVolumeClaim

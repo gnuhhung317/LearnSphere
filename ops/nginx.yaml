@@ -1,0 +1,226 @@
+# nginx-cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: edge-nginx-conf
+  namespace: studyhub-dev
+data:
+  nginx.conf: |
+    worker_processes auto;
+    events { worker_connections 1024; }
+
+    # HTTP reverse proxy (dành cho các HTTP UI/API như keycloak, minio console, zipkin)
+    http {
+      include       /etc/nginx/mime.types;
+      default_type  application/octet-stream;
+      sendfile      on;
+
+      # status endpoint cho liveness/readiness
+      server {
+        listen 18080;
+        location /nginx_status {
+          stub_status;
+          access_log off;
+        }
+      }
+
+      # Keycloak (HTTP)
+      upstream keycloak_upstream {
+        server keycloak.studyhub-dev.svc.cluster.local:8080;
+      }
+      server {
+        listen 8080;
+        location / {
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+          proxy_pass http://keycloak_upstream;
+        }
+      }
+
+      # MinIO Console (HTTP, port 9001)
+      upstream minio_console_upstream {
+        server minio.studyhub-dev.svc.cluster.local:9001;
+      }
+      server {
+        listen 9001;
+        location / {
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+          proxy_pass http://minio_console_upstream;
+        }
+      }
+
+      # Zipkin (HTTP, 9411)
+      upstream zipkin_upstream {
+        server zipkin.studyhub-dev.svc.cluster.local:9411;
+      }
+      server {
+        listen 9411;
+        location / {
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+          proxy_pass http://zipkin_upstream;
+        }
+      }
+    }
+
+    # TCP stream passthrough cho các protocol không-HTTP
+    stream {
+      # Postgres (user-db 5432)
+      upstream pg_user {
+        server postgres-user-db.studyhub-dev.svc.cluster.local:5432;
+      }
+      server {
+        listen 5432;
+        proxy_pass pg_user;
+      }
+
+      # Postgres (chat-db 5433)
+      upstream pg_chat {
+        server postgres-chat-db.studyhub-dev.svc.cluster.local:5433;
+      }
+      server {
+        listen 5433;
+        proxy_pass pg_chat;
+      }
+
+      # RabbitMQ AMQP (5672)
+      upstream amqp_upstream {
+        server rabbitmq.studyhub-dev.svc.cluster.local:5672;
+      }
+      server {
+        listen 5672;
+        proxy_pass amqp_upstream;
+      }
+
+      # Redis (6379)
+      upstream redis_upstream {
+        server redis.studyhub-dev.svc.cluster.local:6379;
+      }
+      server {
+        listen 6379;
+        proxy_pass redis_upstream;
+      }
+
+      # MinIO S3 API (9000)
+      upstream minio_api_upstream {
+        server minio.studyhub-dev.svc.cluster.local:9000;
+      }
+      server {
+        listen 9000;
+        proxy_pass minio_api_upstream;
+      }
+
+      # RabbitMQ Management UI (15672) — là HTTP nhưng để đơn giản vẫn passthrough TCP
+      upstream rabbit_ui_upstream {
+        server rabbitmq.studyhub-dev.svc.cluster.local:15672;
+      }
+      server {
+        listen 15672;
+        proxy_pass rabbit_ui_upstream;
+      }
+
+      # (Tùy chọn) Zipkin qua stream cũng được, nhưng đã có HTTP block trên 9411 rồi.
+    }
+---
+# nginx-deploy.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edge-nginx
+  namespace: studyhub-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: edge-nginx }
+  template:
+    metadata:
+      labels: { app: edge-nginx }
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.25-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080   # keycloak http
+            - containerPort: 9001   # minio console
+            - containerPort: 9411   # zipkin http
+            - containerPort: 5432   # pg user
+            - containerPort: 5433   # pg chat
+            - containerPort: 5672   # amqp
+            - containerPort: 6379   # redis
+            - containerPort: 9000   # minio s3
+            - containerPort: 15672  # rabbitmq ui
+            - containerPort: 18080  # status
+          volumeMounts:
+            - name: nginx-conf
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+          readinessProbe:
+            httpGet:
+              path: /nginx_status
+              port: 18080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /nginx_status
+              port: 18080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: nginx-conf
+          configMap:
+            name: edge-nginx-conf
+            items:
+              - key: nginx.conf
+                path: nginx.conf
+---
+# nginx-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: edge
+  namespace: studyhub-dev
+  annotations:
+    # ví dụ: trên cloud bạn có thể thêm annotation của provider (tùy môi trường)
+    # service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 203.0.113.42
+  selector:
+    app: edge-nginx
+  ports:
+    - name: keycloak
+      port: 8080
+      targetPort: 8080
+    - name: minio-console
+      port: 9001
+      targetPort: 9001
+    - name: zipkin
+      port: 9411
+      targetPort: 9411
+    - name: pg-user
+      port: 5432
+      targetPort: 5432
+    - name: pg-chat
+      port: 5433
+      targetPort: 5433
+    - name: amqp
+      port: 5672
+      targetPort: 5672
+    - name: redis
+      port: 6379
+      targetPort: 6379
+    - name: minio-api
+      port: 9000
+      targetPort: 9000
+    - name: rabbit-ui
+      port: 15672
+      targetPort: 15672

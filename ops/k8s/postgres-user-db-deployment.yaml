@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: C:\Users\Acer\.local\bin\kompose.exe convert -f studyhub/ops/docker-compose.dev.yml -o k8s/ --namespace studyhub-dev --controller deployment --volumes persistentVolumeClaim
+    kompose.version: 1.37.0 (fb0539e64)
+  labels:
+    io.kompose.service: postgres-user-db
+  name: postgres-user-db
+  namespace: studyhub-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: postgres-user-db
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: C:\Users\Acer\.local\bin\kompose.exe convert -f studyhub/ops/docker-compose.dev.yml -o k8s/ --namespace studyhub-dev --controller deployment --volumes persistentVolumeClaim
+        kompose.version: 1.37.0 (fb0539e64)
+      labels:
+        io.kompose.service: postgres-user-db
+    spec:
+      containers:
+        - env:
+            - name: POSTGRES_DB
+              value: user_service_db
+            - name: POSTGRES_PASSWORD
+              value: password
+            - name: POSTGRES_USER
+              value: user
+          image: postgres:16-alpine
+          name: postgres-user-db
+          ports:
+            - containerPort: 5432
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: postgres-user-data
+      restartPolicy: Always
+      volumes:
+        - name: postgres-user-data
+          emptyDir: {}
