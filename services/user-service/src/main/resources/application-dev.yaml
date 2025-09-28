@@ -1,0 +1,29 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+  
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/studyhub
+          jwk-set-uri: http://localhost:8080/realms/studyhub/protocol/openid-connect/certs
+
+logging:
+  level:
+    root: INFO
+    com.studyhub.user_service: DEBUG
+    org.springframework.security: INFO
