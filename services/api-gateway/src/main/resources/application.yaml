@@ -1,0 +1,608 @@
+server:
+  port: 8079
+
+spring:
+  application:
+    name: api-gateway
+  profiles:
+    active: dev
+  main:
+    web-application-type: reactive
+  cloud:
+    compatibility-verifier:
+      enabled: false
+    gateway:
+      routes:
+        # User Service Routes
+        - id: user-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: user-service
+                fallbackUri: forward:/fallback/users
+                statusCodes:
+                  - 500
+                  - 502
+                  - 503
+                  - 504
+                  - "INTERNAL_SERVER_ERROR"
+                  - "BAD_GATEWAY"
+                  - "SERVICE_UNAVAILABLE"
+                  - "GATEWAY_TIMEOUT"
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
+                backoff:
+                  firstBackoff: 10ms
+                  maxBackoff: 50ms
+          metadata:
+            response-timeout: 5000
+            connect-timeout: 2000
+        
+        # Auth Service Routes  
+        - id: auth-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: auth-service
+                fallbackUri: forward:/fallback/auth
+                statusCodes:
+                  - 500
+                  - 502
+                  - 503
+                  - 504
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 1
+          metadata:
+            response-timeout: 3000
+            connect-timeout: 2000
+                
+        # Chat Service Routes
+        - id: chat-service
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/chat/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: chat-service
+                fallbackUri: forward:/fallback/chat
+                statusCodes:
+                  - 500
+                  - 502
+                  - 503
+                  - 504
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 15
+                redis-rate-limiter.burstCapacity: 30
+                redis-rate-limiter.requestedTokens: 1
+          metadata:
+            response-timeout: 10000
+            connect-timeout: 3000
+
+        # Media Service Routes
+        - id: media-service
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/media/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: media-service
+                fallbackUri: forward:/fallback/media
+                statusCodes:
+                  - 500
+                  - 502
+                  - 503
+                  - 504
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                redis-rate-limiter.requestedTokens: 1
+          metadata:
+            response-timeout: 30000
+            connect-timeout: 5000
+
+        # Real-time Service Routes (WebSocket support)
+        - id: realtime-service
+          uri: http://localhost:8085
+          predicates:
+            - Path=/api/realtime/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: realtime-service
+                fallbackUri: forward:/fallback/realtime
+                statusCodes:
+                  - 500
+                  - 502
+                  - 503
+                  - 504
+          metadata:
+            response-timeout: 15000
+            connect-timeout: 3000
+
+        # AI Service Routes
+        - id: ai-service
+          uri: http://localhost:8086
+          predicates:
+            - Path=/api/ai/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: ai-service
+                fallbackUri: forward:/fallback/ai
+                statusCodes:
+                  - 500
+                  - 502
+                  - 503
+                  - 504
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 2
+                redis-rate-limiter.burstCapacity: 5
+                redis-rate-limiter.requestedTokens: 1
+          metadata:
+            response-timeout: 60000
+            connect-timeout: 5000
+
+        # Search Service Routes
+        - id: search-service
+          uri: http://localhost:8087
+          predicates:
+            - Path=/api/search/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: search-service
+                fallbackUri: forward:/fallback/search
+                statusCodes:
+                  - 500
+                  - 502
+                  - 503
+                  - 504
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 8
+                redis-rate-limiter.burstCapacity: 15
+                redis-rate-limiter.requestedTokens: 1
+          metadata:
+            response-timeout: 8000
+            connect-timeout: 3000
+
+        # Keycloak Routes (direct proxy)
+        - id: keycloak
+          uri: http://localhost:8080
+          predicates:
+            - Path=/realms/**,/admin/**
+          metadata:
+            response-timeout: 5000
+            connect-timeout: 2000
+
+      # Global CORS configuration
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: 
+              - "http://localhost:*"
+              - "https://localhost:*"
+              - "http://127.0.0.1:*"
+              - "https://127.0.0.1:*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+              - PATCH
+            allowedHeaders:
+              - "*"
+            exposedHeaders:
+              - "Authorization"
+              - "Content-Type"
+              - "X-Requested-With"
+              - "X-Total-Count"
+            allowCredentials: true
+            maxAge: 3600
+
+      # Default filters applied to all routes
+      default-filters:
+        - name: SecureHeaders
+        - name: AddRequestHeader
+          args:
+            name: X-Gateway-Version
+            value: "1.0.0"
+        - name: AddRequestHeader
+          args:
+            name: X-Request-ID
+            value: "req-#{T(System).currentTimeMillis()}"
+        - name: RemoveRequestHeader
+          args:
+            name: Cookie
+        - name: RemoveResponseHeader
+          args:
+            name: Server
+
+  # OAuth2 Resource Server Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/studyhub
+
+# Redis Configuration for Rate Limiting
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-wait: -1ms
+        max-idle: 8
+        min-idle: 0
+
+# Resilience4j Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      user-service:
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 2s
+        automatic-transition-from-open-to-half-open-enabled: true
+      auth-service:
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 20s
+        permitted-number-of-calls-in-half-open-state: 3
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 1s
+        automatic-transition-from-open-to-half-open-enabled: true
+      chat-service:
+        register-health-indicator: true
+        sliding-window-size: 15
+        minimum-number-of-calls: 8
+        failure-rate-threshold: 60
+        wait-duration-in-open-state: 25s
+        permitted-number-of-calls-in-half-open-state: 5
+        slow-call-rate-threshold: 60
+        slow-call-duration-threshold: 3s
+        automatic-transition-from-open-to-half-open-enabled: true
+      media-service:
+        register-health-indicator: true
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 70
+        wait-duration-in-open-state: 45s
+        permitted-number-of-calls-in-half-open-state: 3
+        slow-call-rate-threshold: 70
+        slow-call-duration-threshold: 10s
+        automatic-transition-from-open-to-half-open-enabled: true
+      realtime-service:
+        register-health-indicator: true
+        sliding-window-size: 15
+        minimum-number-of-calls: 8
+        failure-rate-threshold: 60
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 4
+        slow-call-rate-threshold: 60
+        slow-call-duration-threshold: 5s
+        automatic-transition-from-open-to-half-open-enabled: true
+      ai-service:
+        register-health-indicator: true
+        sliding-window-size: 20
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 80
+        wait-duration-in-open-state: 60s
+        permitted-number-of-calls-in-half-open-state: 2
+        slow-call-rate-threshold: 80
+        slow-call-duration-threshold: 30s
+        automatic-transition-from-open-to-half-open-enabled: true
+      search-service:
+        register-health-indicator: true
+        sliding-window-size: 12
+        minimum-number-of-calls: 6
+        failure-rate-threshold: 55
+        wait-duration-in-open-state: 25s
+        permitted-number-of-calls-in-half-open-state: 3
+        slow-call-rate-threshold: 55
+        slow-call-duration-threshold: 3s
+        automatic-transition-from-open-to-half-open-enabled: true
+
+  # Retry Configuration
+  retry:
+    instances:
+      user-service:
+        max-attempts: 3
+        wait-duration: 100ms
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+      auth-service:
+        max-attempts: 3
+        wait-duration: 100ms
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+      chat-service:
+        max-attempts: 2
+        wait-duration: 200ms
+        exponential-backoff-multiplier: 1.5
+        retry-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+      media-service:
+        max-attempts: 2
+        wait-duration: 500ms
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+      realtime-service:
+        max-attempts: 2
+        wait-duration: 200ms
+        exponential-backoff-multiplier: 1.5
+        retry-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+      ai-service:
+        max-attempts: 1
+        wait-duration: 1s
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+      search-service:
+        max-attempts: 3
+        wait-duration: 150ms
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+
+  # Time Limiter Configuration
+  timelimiter:
+    instances:
+      user-service:
+        timeout-duration: 5s
+        cancel-running-future: true
+      auth-service:
+        timeout-duration: 3s
+        cancel-running-future: true
+      chat-service:
+        timeout-duration: 10s
+        cancel-running-future: true
+      media-service:
+        timeout-duration: 30s
+        cancel-running-future: true
+      realtime-service:
+        timeout-duration: 15s
+        cancel-running-future: true
+      ai-service:
+        timeout-duration: 60s
+        cancel-running-future: true
+      search-service:
+        timeout-duration: 8s
+        cancel-running-future: true
+
+# Logging Configuration
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    org.springframework.security: INFO
+    org.springframework.web.reactive: DEBUG
+    org.springframework.cloud.gateway.filter: DEBUG
+    org.springframework.cloud.gateway.route: INFO
+    org.springframework.cloud.circuitbreaker: INFO
+    com.studyhub: DEBUG
+    io.github.resilience4j: INFO
+    redis.clients.jedis: WARN
+    reactor.netty: INFO
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway,metrics,prometheus,circuitbreakers,ratelimiters,retries,timelimiters
+      base-path: /actuator
+      cors:
+        allowed-origins: "*"
+        allowed-methods: GET,POST
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+    info:
+      enabled: true
+    gateway:
+      enabled: true
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+  info:
+    git:
+      mode: full
+    build:
+      enabled: true
+    env:
+      enabled: true
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+    diskspace:
+      enabled: true
+    redis:
+      enabled: true
+
+---
+# Development Profile Configuration
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  # Development Redis (for rate limiting)
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 2000ms
+
+  # Development security - more permissive CORS
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 86400
+
+# Development logging
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web.reactive: DEBUG
+    org.springframework.cloud.gateway.filter: DEBUG
+    org.springframework.cloud.gateway.route: DEBUG
+    com.studyhub: DEBUG
+    io.github.resilience4j: DEBUG
+
+---
+# Production Profile Configuration
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  # Production Redis configuration
+  redis:
+    host: ${REDIS_HOST:redis}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 16
+        max-wait: -1ms
+        max-idle: 8
+        min-idle: 2
+
+  # Production security - strict CORS
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: 
+              - "https://*.studyhub.com"
+              - "https://studyhub.com"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+              - PATCH
+            allowedHeaders:
+              - "Authorization"
+              - "Content-Type"
+              - "X-Requested-With"
+            exposedHeaders:
+              - "Authorization"
+              - "Content-Type"
+              - "X-Total-Count"
+            allowCredentials: true
+            maxAge: 3600
+
+      # Production service discovery URIs
+      routes:
+        # Override service URIs for production
+        - id: user-service
+          uri: http://user-service:8081
+        - id: auth-service
+          uri: http://auth-service:8082
+        - id: chat-service
+          uri: http://chat-service:8083
+        - id: media-service
+          uri: http://media-service:8084
+        - id: realtime-service
+          uri: http://realtime-service:8085
+        - id: ai-service
+          uri: http://ai-service:8086
+        - id: search-service
+          uri: http://search-service:8087
+        - id: keycloak
+          uri: http://keycloak:8080
+
+  # Production OAuth2 configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://keycloak:8080/realms/studyhub}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://keycloak:8080/realms/studyhub/protocol/openid-connect/certs}
+
+# Production logging
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    org.springframework.security: WARN
+    org.springframework.web.reactive: WARN
+    org.springframework.cloud.gateway.filter: INFO
+    org.springframework.cloud.gateway.route: INFO
+    com.studyhub: INFO
+    io.github.resilience4j: INFO
+    redis.clients.jedis: ERROR
+    reactor.netty: WARN
+  file:
+    name: /var/log/studyhub/api-gateway.log
+    max-size: 100MB
+    max-history: 30
+
+# Production management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: never

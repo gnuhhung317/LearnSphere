@@ -6,7 +6,7 @@ spring:
     name: user-service
   
   profiles:
-    active: dev
+    active: prod
 
   datasource:
     url: jdbc:postgresql://localhost:5432/user_service_db

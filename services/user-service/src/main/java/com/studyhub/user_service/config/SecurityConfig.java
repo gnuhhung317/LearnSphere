@@ -10,17 +10,22 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
-@Profile("dev")  // Only active in dev profile
-public class DevSecurityConfig {
+@Profile("!dev")  // Active when NOT in dev profile
+public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain devSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authz -> authz
-                .anyRequest().permitAll() // Allow all requests in dev mode
+                .requestMatchers("/api/users/health", "/api/users/test").permitAll() // Public endpoints
+                .anyRequest().authenticated() // All other endpoints require authentication
                 )
-                .oauth2ResourceServer(AbstractHttpConfigurer::disable);  // Disable OAuth2 for dev
+                .oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(jwt -> {
+                    // JWT decoder will be auto-configured from application.yml
+                })
+                );
 
         return http.build();
     }
