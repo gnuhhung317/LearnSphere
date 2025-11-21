@@ -5,3 +5,6 @@ frontend/.next/
 frontend/out/
 frontend/.env.local
 *env*
+*.yaml*
+*~
+*.properties

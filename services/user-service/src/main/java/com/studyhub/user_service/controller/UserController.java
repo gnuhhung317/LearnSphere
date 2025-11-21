@@ -47,36 +47,8 @@ public class UserController {
 
     @PostMapping
     public ResponseEntity<UserResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
-        log.info("Creating user: {}", request.getUsername());
         UserResponse response = userService.createUser(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @GetMapping
-    public ResponseEntity<List<UserResponse>> getAllActiveUsers() {
-        log.info("Fetching all active users");
-        List<UserResponse> users = userService.getAllActiveUsers();
-        return ResponseEntity.ok(users);
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<UserResponse> getUserById(@PathVariable Long id) {
-        log.info("Fetching user by ID: {}", id);
-        UserResponse user = userService.getUserById(id);
-        return ResponseEntity.ok(user);
-    }
-
-    @GetMapping("/username/{username}")
-    public ResponseEntity<UserResponse> getUserByUsername(@PathVariable String username) {
-        log.info("Fetching user by username: {}", username);
-        UserResponse user = userService.getUserByUsername(username);
-        return ResponseEntity.ok(user);
-    }
-
-    @PatchMapping("/{username}/last-login")
-    public ResponseEntity<Void> updateLastLogin(@PathVariable String username) {
-        log.info("Updating last login for user: {}", username);
-        userService.updateLastLogin(username);
-        return ResponseEntity.ok().build();
-    }
 }

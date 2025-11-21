@@ -5,6 +5,6 @@ k get nodes
 
 
 ## set up for linux
-export KUBECONFIG="hihi.yaml"
+export KUBECONFIG="dsm.yaml"
 alias k="kubectl"
 k get nodes

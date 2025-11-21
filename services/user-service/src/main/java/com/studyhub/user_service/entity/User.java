@@ -1,17 +1,24 @@
 package com.studyhub.user_service.entity;
 
+import com.studyhub.common.constant.enums.SupportedLanguage;
+import com.studyhub.common.constant.enums.Theme;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
+/**
+ * User entity representing user profile data synced from Keycloak Passwords are
+ * managed by Keycloak, not stored here
+ */
 @Entity
 @Table(name = "users")
 @Data
@@ -23,38 +30,62 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
-    @NotBlank(message = "Username is required")
-    @Size(min = 3, max = 50, message = "Username must be between 3 and 50 characters")
-    private String username;
+    /**
+     * Keycloak user ID - links this profile to Keycloak identity
+     */
+    @Column(name = "keycloak_user_id", unique = true, nullable = false, length = 255)
+    private String keycloakUserId;
 
-    @Column(unique = true, nullable = false)
+    @Column(name = "full_name", nullable = false, length = 100)
+    private String fullName;
+
+    @Column(unique = true, nullable = false, length = 255)
     @Email(message = "Email should be valid")
-    @NotBlank(message = "Email is required")
     private String email;
 
-    @Column(name = "first_name")
-    @NotBlank(message = "First name is required")
-    @Size(max = 50, message = "First name must not exceed 50 characters")
-    private String firstName;
+    @Column(nullable = false, length = 20)
+    @Enumerated(EnumType.STRING)
+    private Theme theme = Theme.AUTO;
 
-    @Column(name = "last_name")
-    @NotBlank(message = "Last name is required")
-    @Size(max = 50, message = "Last name must not exceed 50 characters")
-    private String lastName;
+    @Column(name = "language", nullable = false, length = 20)
+    @Enumerated(EnumType.STRING)
+    private SupportedLanguage language = SupportedLanguage.ENGLISH;
 
-    @Column(name = "profile_picture_url")
-    private String profilePictureUrl;
+    /**
+     * Notification preferences stored as JSONB
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "notifications", columnDefinition = "jsonb")
+    private Map<String, Boolean> notifications;
 
-    @Column(name = "bio")
-    @Size(max = 500, message = "Bio must not exceed 500 characters")
-    private String bio;
+    /**
+     * Accessibility settings stored as JSONB
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "accessibility", columnDefinition = "jsonb")
+    private Map<String, Boolean> accessibility;
+
+    /**
+     * Privacy settings stored as JSONB
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "privacy", columnDefinition = "jsonb")
+    private Map<String, Object> privacy;
+
+    @Column(name = "profile_visibility", length = 50)
+    private String profileVisibility = "organization";
+
+    @Column(name = "status", length = 20)
+    private String status = "active";
+
+    @Column(name = "is_verified")
+    private Boolean isVerified = false;
 
     @Column(name = "is_active")
     private Boolean isActive = true;
 
-    @Column(name = "last_login")
-    private LocalDateTime lastLogin;
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
