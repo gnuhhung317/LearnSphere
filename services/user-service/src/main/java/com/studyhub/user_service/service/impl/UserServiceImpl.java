@@ -2,12 +2,16 @@ package com.studyhub.user_service.service.impl;
 
 import com.studyhub.common.constant.enums.SupportedLanguage;
 import com.studyhub.common.constant.enums.Theme;
+import com.studyhub.common.exception.BusinessException;
 import com.studyhub.user_service.dto.CreateUserRequest;
 import com.studyhub.user_service.dto.UserResponse;
+import com.studyhub.user_service.dto.UserSummaryDto;
 import com.studyhub.user_service.entity.User;
+import com.studyhub.user_service.entity.UserFollower;
 import com.studyhub.user_service.exception.UserAlreadyExistsException;
 import com.studyhub.user_service.exception.UserNotFoundException;
 import com.studyhub.user_service.mapper.UserMapper;
+import com.studyhub.user_service.repository.UserFollowerRepository;
 import com.studyhub.user_service.repository.UserRepository;
 import com.studyhub.user_service.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +20,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Service implementation for user operations
@@ -27,6 +33,7 @@ import java.util.Map;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final UserFollowerRepository userFollowerRepository;
     private final UserMapper userMapper;
 
     @Transactional
@@ -38,8 +45,7 @@ public class UserServiceImpl implements UserService {
 
         if (userExists) {
             throw new UserAlreadyExistsException(createUserRequest.getEmail());
-        }
-        else {
+        } else {
             User user = new User();
             user.setKeycloakUserId(createUserRequest.getKeycloakUserId());
             user.setEmail(createUserRequest.getEmail());
@@ -49,18 +55,19 @@ public class UserServiceImpl implements UserService {
 //            user.setStatus();
             user.setIsVerified(false);
             user.setIsActive(true);
-            user.setProfileVisibility("organization");
 
             log.info("Creating new user profile for: {}", createUserRequest.getEmail());
             user = userRepository.save(user);
-            log.info("Successfully synced user: {} (ID: {})", createUserRequest.getEmail(), user.getId());
+            log.info("Successfully synced user: {} (ID: {})", createUserRequest.getEmail(), user.getKeycloakUserId());
             return userMapper.toResponse(user);
         }
     }
 
     @Override
+    @Transactional(readOnly = true)
     public User getUserByKeycloakId(String keycloakUserId) {
-        return null;
+        return userRepository.findByKeycloakUserId(keycloakUserId)
+                .orElseThrow(() -> new UserNotFoundException("keycloakUserId", keycloakUserId));
     }
 
     @Transactional(readOnly = true)
@@ -103,11 +110,103 @@ public class UserServiceImpl implements UserService {
 
             // Extract profile visibility from privacy settings
             Map<String, Object> privacy = (Map<String, Object>) preferences.get("privacy");
-            if (privacy.containsKey("profileVisibility")) {
-                user.setProfileVisibility((String) privacy.get("profileVisibility"));
-            }
+
         }
 
         return userRepository.save(user);
+    }
+
+    @Override
+    @Transactional
+    public void followUser(String followerKeycloakId, Long followedUserId) {
+        User follower = getUserByKeycloakId(followerKeycloakId);
+        User followed = getUserById(followedUserId);
+
+        // Check if already following
+        if (userFollowerRepository.existsByFollowerUserIdAndFollowedUserId(follower.getUserId(), followedUserId)) {
+            throw new BusinessException("Already following this user");
+        }
+
+        // Cannot follow yourself
+        if (follower.getUserId().equals(followedUserId)) {
+            throw new BusinessException("Cannot follow yourself");
+        }
+
+        UserFollower userFollower = new UserFollower();
+        userFollower.setFollower(follower);
+        userFollower.setFollowed(followed);
+        userFollowerRepository.save(userFollower);
+
+        log.info("User {} followed user {}", follower.getUserId(), followedUserId);
+    }
+
+    @Override
+    @Transactional
+    public void unfollowUser(String followerKeycloakId, Long followedUserId) {
+        User follower = getUserByKeycloakId(followerKeycloakId);
+
+        if (!userFollowerRepository.existsByFollowerUserIdAndFollowedUserId(follower.getUserId(), followedUserId)) {
+            throw new BusinessException("Not following this user");
+        }
+
+        userFollowerRepository.deleteByFollowerUserIdAndFollowedUserId(follower.getUserId(), followedUserId);
+        log.info("User {} unfollowed user {}", follower.getUserId(), followedUserId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isFollowing(Long followerId, Long followedId) {
+        return userFollowerRepository.existsByFollowerUserIdAndFollowedUserId(followerId, followedId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserSummaryDto> searchUsers(String query, String currentUserKeycloakId) {
+        User currentUser = getUserByKeycloakId(currentUserKeycloakId);
+
+        // Search by username, fullName, or location
+        String searchPattern = "%" + query.toLowerCase() + "%";
+        List<User> users = userRepository.searchUsers(searchPattern);
+
+        return users.stream()
+                .map(user -> mapToUserSummary(user, currentUser.getUserId()))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserSummaryDto> getFollowers(Long userId, String currentUserKeycloakId) {
+        User currentUser = getUserByKeycloakId(currentUserKeycloakId);
+        List<User> followers = userFollowerRepository.findFollowersByUserId(userId);
+
+        return followers.stream()
+                .map(user -> mapToUserSummary(user, currentUser.getUserId()))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserSummaryDto> getFollowing(Long userId, String currentUserKeycloakId) {
+        User currentUser = getUserByKeycloakId(currentUserKeycloakId);
+        List<User> following = userFollowerRepository.findFollowingByUserId(userId);
+
+        return following.stream()
+                .map(user -> mapToUserSummary(user, currentUser.getUserId()))
+                .collect(Collectors.toList());
+    }
+
+    private UserSummaryDto mapToUserSummary(User user, Long currentUserId) {
+        UserSummaryDto dto = new UserSummaryDto();
+        dto.setId(user.getUserId());
+        dto.setUsername(user.getUsername());
+        dto.setFullName(user.getFullName());
+        dto.setBio(user.getUserProfile() != null ? user.getUserProfile().getBio() : null);
+        dto.setAvatarUrl(user.getUserProfile() != null ? user.getUserProfile().getAvatarUrl() : null);
+        dto.setLocation(user.getLocation());
+        dto.setFollowersCount((int) userFollowerRepository.countFollowersByUserId(user.getUserId()));
+        dto.setFollowingCount((int) userFollowerRepository.countFollowingByUserId(user.getUserId()));
+        dto.setIsFollowing(userFollowerRepository.existsByFollowerUserIdAndFollowedUserId(currentUserId, user.getUserId()));
+        dto.setJoinedAt(user.getCreatedAt());
+        return dto;
     }
 }

@@ -1,6 +1,7 @@
 package com.studyhub.auth_service.controller;
 
 import com.studyhub.auth_service.dto.request.LoginRequest;
+import com.studyhub.auth_service.dto.request.RefreshTokenRequest;
 import com.studyhub.auth_service.dto.request.RegisterRequest;
 import com.studyhub.auth_service.dto.response.LoginResponse;
 import com.studyhub.auth_service.dto.response.RegisterResponse;
@@ -19,6 +20,7 @@ import java.util.Map;
 @RequestMapping("api/auth")
 @RequiredArgsConstructor
 public class AuthController {
+
     private final AuthService authService;
 
     @GetMapping("/me")
@@ -28,8 +30,8 @@ public class AuthController {
                 ? (List<String>) realmAccess.get("roles")
                 : List.of();
 
-        return Map.of("username", jwt.getClaimAsString("preferred_username")
-                , "email", jwt.getClaimAsString("email"),
+        return Map.of("username", jwt.getClaimAsString("preferred_username"),
+                 "email", jwt.getClaimAsString("email"),
                 "roles", roles);
     }
 
@@ -38,9 +40,16 @@ public class AuthController {
         RegisterResponse response = authService.register(request);
         return ApiResponse.success(response);
     }
+
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = authService.login(request);
+        return ApiResponse.success(response);
+    }
+
+    @PostMapping("/refresh")
+    public ApiResponse<LoginResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        LoginResponse response = authService.refreshToken(request.getRefreshToken());
         return ApiResponse.success(response);
     }
 }

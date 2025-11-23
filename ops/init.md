@@ -8,3 +8,4 @@ k get nodes
 export KUBECONFIG="dsm.yaml"
 alias k="kubectl"
 k get nodes
+xxxxxx

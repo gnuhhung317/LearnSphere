@@ -19,4 +19,15 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByEmail(String email);
 
     boolean existsByKeycloakUserIdOrEmail(String keycloakUserId, String email);
+
+    Optional<User> findByKeycloakUserId(String keycloakUserId);
+
+    /**
+     * Search users by username, fullName, or location
+     */
+    @Query("SELECT u FROM User u WHERE "
+            + "LOWER(u.username) LIKE :searchPattern OR "
+            + "LOWER(u.fullName) LIKE :searchPattern OR "
+            + "LOWER(u.location) LIKE :searchPattern")
+    List<User> searchUsers(@org.springframework.data.repository.query.Param("searchPattern") String searchPattern);
 }

@@ -28,20 +28,23 @@ public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long userId;
 
-    /**
-     * Keycloak user ID - links this profile to Keycloak identity
-     */
     @Column(name = "keycloak_user_id", unique = true, nullable = false, length = 255)
     private String keycloakUserId;
+
+    @Column(name = "username", unique = true, length = 50)
+    private String username;
 
     @Column(name = "full_name", nullable = false, length = 100)
     private String fullName;
 
-    @Column(unique = true, nullable = false, length = 255)
+    @Column(unique = true, nullable = false)
     @Email(message = "Email should be valid")
     private String email;
+
+    @Column(name = "location", length = 100)
+    private String location;
 
     @Column(nullable = false, length = 20)
     @Enumerated(EnumType.STRING)
@@ -72,9 +75,6 @@ public class User {
     @Column(name = "privacy", columnDefinition = "jsonb")
     private Map<String, Object> privacy;
 
-    @Column(name = "profile_visibility", length = 50)
-    private String profileVisibility = "organization";
-
     @Column(name = "status", length = 20)
     private String status = "active";
 
@@ -94,4 +94,13 @@ public class User {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private UserProfile userProfile;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private UserStats userStats;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<LearningPath> learningPaths;
 }

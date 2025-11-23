@@ -18,17 +18,23 @@ import java.util.Map;
 public class UserProfile {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column(name = "user_id")
-    private Long userId;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @MapsId
+    @JoinColumn(name = "user_id")
+    private User user;
+
     @Column(name = "avatar_url")
     private String avatarUrl;
-    @Column(name = "bio")
+
+    @Column(name = "bio", length = 500)
     private String bio;
-    @Column(name = "title")
+
+    @Column(name = "title", length = 100)
     private String title;
-    @Column(name = "social_links",columnDefinition = "jsonb")
+
+    @Column(name = "social_links", columnDefinition = "jsonb")
     @JdbcTypeCode(value = SqlTypes.JSON)
     private Map<SocialPlatform, String> socialLinks;
 }

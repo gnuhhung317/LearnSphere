@@ -23,4 +23,11 @@ public interface KeycloakClient {
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     AccessTokenResponse login(Map<String, String> formParameters);
+
+    @PostMapping(
+            value = "/realms/studyhub/protocol/openid-connect/token",
+            consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    AccessTokenResponse refreshToken(Map<String, String> formParameters);
 }

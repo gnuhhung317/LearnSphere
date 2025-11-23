@@ -29,7 +29,7 @@ public class KeycloakServiceImpl implements KeycloakService {
 
     private final Keycloak keycloak;
     private final KeycloakClient keycloakClient;
-    private String keycloakRealm="studyhub";
+    private String keycloakRealm = "studyhub";
 
     @Override
     public CreateUserRequest createUser(RegisterRequest request) {
@@ -89,18 +89,48 @@ public class KeycloakServiceImpl implements KeycloakService {
     @Override
     public LoginResponse login(LoginRequest request) {
         Map<String, String> form = Map.of("username", request.getEmail(), "password", request.getPassword(), "grant_type", "password", "scope", "email");
-        AccessTokenResponse accessTokenResponse = keycloakClient.login(form);
-        return LoginResponse.builder()
-                .accessToken(accessTokenResponse.getToken())
-                .refreshToken(accessTokenResponse.getRefreshToken())
-                .tokenType(accessTokenResponse.getTokenType())
-                .idToken(accessTokenResponse.getIdToken())
-                .expiresIn(accessTokenResponse.getExpiresIn())
-                .refreshExpiresIn(accessTokenResponse.getRefreshExpiresIn())
-                .notBeforePolicy(accessTokenResponse.getNotBeforePolicy())
-                .scope(accessTokenResponse.getScope())
-                .sessionState(accessTokenResponse.getSessionState())
-                .build();
+        try {
+            AccessTokenResponse accessTokenResponse = keycloakClient.login(form);
+            return LoginResponse.builder()
+                    .accessToken(accessTokenResponse.getToken())
+                    .refreshToken(accessTokenResponse.getRefreshToken())
+                    .tokenType(accessTokenResponse.getTokenType())
+                    .idToken(accessTokenResponse.getIdToken())
+                    .expiresIn(accessTokenResponse.getExpiresIn())
+                    .refreshExpiresIn(accessTokenResponse.getRefreshExpiresIn())
+                    .notBeforePolicy(accessTokenResponse.getNotBeforePolicy())
+                    .scope(accessTokenResponse.getScope())
+                    .sessionState(accessTokenResponse.getSessionState())
+                    .build();
+
+        } catch (Exception e) {
+            throw new BusinessException("KEYCLOAK_INTERNAL_ERROR");
+        }
+    }
+
+    @Override
+    public LoginResponse refreshToken(String refreshToken) {
+        Map<String, String> form = Map.of(
+                "grant_type", "refresh_token",
+                "refresh_token", refreshToken
+        );
+        try {
+            AccessTokenResponse accessTokenResponse = keycloakClient.refreshToken(form);
+            return LoginResponse.builder()
+                    .accessToken(accessTokenResponse.getToken())
+                    .refreshToken(accessTokenResponse.getRefreshToken())
+                    .tokenType(accessTokenResponse.getTokenType())
+                    .idToken(accessTokenResponse.getIdToken())
+                    .expiresIn(accessTokenResponse.getExpiresIn())
+                    .refreshExpiresIn(accessTokenResponse.getRefreshExpiresIn())
+                    .notBeforePolicy(accessTokenResponse.getNotBeforePolicy())
+                    .scope(accessTokenResponse.getScope())
+                    .sessionState(accessTokenResponse.getSessionState())
+                    .build();
+        } catch (Exception e) {
+            log.error("Failed to refresh token", e);
+            throw new BusinessException("REFRESH_TOKEN_EXPIRED");
+        }
     }
 
     private boolean isUserExists(String email) {

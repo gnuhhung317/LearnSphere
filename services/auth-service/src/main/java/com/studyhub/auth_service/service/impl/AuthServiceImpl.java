@@ -23,14 +23,14 @@ public class AuthServiceImpl implements AuthService {
     public RegisterResponse register(RegisterRequest request) {
         CreateUserRequest createUserRequest = keycloakService.createUser(request);
         try {
-            userClient.register(createUserRequest);
+            RegisterResponse registerResponse = userClient.register(createUserRequest);
 
             // Build and return success response
             return RegisterResponse.builder()
-                    .userId(createUserRequest.getUserId())
-                    .keycloakUserId(createUserRequest.getKeycloakUserId())
-                    .email(request.getEmail())
-                    .fullName(request.getFullName())
+                    .userId(registerResponse.getUserId())
+                    .keycloakUserId(registerResponse.getKeycloakUserId())
+                    .email(registerResponse.getEmail())
+                    .fullName(registerResponse.getFullName())
                     .message("User registered successfully")
                     .build();
         } catch (Exception e) {
@@ -42,5 +42,10 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public LoginResponse login(LoginRequest request) {
         return keycloakService.login(request);
+    }
+
+    @Override
+    public LoginResponse refreshToken(String refreshToken) {
+        return keycloakService.refreshToken(refreshToken);
     }
 }
