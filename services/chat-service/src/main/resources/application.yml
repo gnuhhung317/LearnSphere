@@ -34,7 +34,10 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: http://localhost:8080/realms/studyhub
-
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
+  
 management:
   endpoints:
     web:
