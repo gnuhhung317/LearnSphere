@@ -3,28 +3,52 @@ package com.studyhub.api_gateway.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import static org.springframework.security.config.Customizer.withDefaults;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.util.matcher.PathPatternParserServerWebExchangeMatcher;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter;
 
 /**
- * Security configuration for API Gateway - Development profile Enables OAuth2
- * Resource Server with Keycloak JWT validation
+ * Security configuration for API Gateway - Development profile 
+ * Uses two security chains: one for WebSocket (no OAuth2), one for REST API (with OAuth2)
  */
 @Configuration
 @EnableWebFluxSecurity
 @Profile("dev")
 public class DevSecurityConfig {
 
+    /**
+     * Security chain for WebSocket endpoints - NO OAuth2, just permitAll
+     * Higher priority (@Order(1)) to be checked first
+     */
     @Bean
-    public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
+    @Order(1)
+    public SecurityWebFilterChain webSocketSecurityFilterChain(ServerHttpSecurity http) {
+        return http
+                .securityMatcher(new PathPatternParserServerWebExchangeMatcher("/api/chat/ws/**"))
+                .csrf(csrf -> csrf.disable())
+                .cors(withDefaults())
+                .authorizeExchange(exchanges -> exchanges
+                    .anyExchange().permitAll()
+                )
+                .build();
+    }
+
+    /**
+     * Security chain for REST API endpoints - OAuth2 Resource Server with JWT
+     * Lower priority (@Order(2)) to handle all other requests
+     */
+    @Bean
+    @Order(2)
+    public SecurityWebFilterChain apiSecurityFilterChain(ServerHttpSecurity http) {
         return http
                 .csrf(csrf -> csrf.disable())
-                .cors(withDefaults()) // Enable CORS for frontend integration
+                .cors(withDefaults())
                 .authorizeExchange(exchanges -> exchanges
                 // Allow CORS preflight
                 .pathMatchers(HttpMethod.OPTIONS).permitAll()
@@ -39,15 +63,15 @@ public class DevSecurityConfig {
                 // Protected endpoints (require authentication)
                 .pathMatchers(
                         "/api/users/**",
-                        "/api/chat/**",
+                        "/api/chat/v1/**", // Chat REST API requires auth
                         "/api/media/**"
                 ).authenticated()
                 .anyExchange().permitAll()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
-                .jwt(jwt -> jwt
-                .jwtAuthenticationConverter(jwtAuthenticationConverter())
-                )
+                    .jwt(jwt -> jwt
+                        .jwtAuthenticationConverter(jwtAuthenticationConverter())
+                    )
                 )
                 .build();
     }

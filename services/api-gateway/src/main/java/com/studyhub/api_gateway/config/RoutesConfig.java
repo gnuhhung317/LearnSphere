@@ -100,13 +100,20 @@ public class RoutesConfig {
                 .metadata(RESPONSE_TIMEOUT_ATTR, 3000)
                 .metadata(CONNECT_TIMEOUT_ATTR, 2000)
                 .uri("http://localhost:8082"))
-                // Chat Service Routes
-                .route("chat-service", r -> r.path("/api/chat/**")
+                // Chat Service Routes (REST API)
+                .route("chat-service-api", r -> r.path("/api/chat/v1/**")
                 .filters(f -> f
+                .rewritePath("/api/chat/v1/(?<segment>.*)", "/api/v1/${segment}")
                 .circuitBreaker(c -> c.setName("chat-service").setFallbackUri("forward:/fallback/chat"))
                 .requestRateLimiter(c -> c.setRateLimiter(chatServiceRateLimiter()).setKeyResolver(ipKeyResolver)))
                 .metadata(RESPONSE_TIMEOUT_ATTR, 10000)
                 .metadata(CONNECT_TIMEOUT_ATTR, 3000)
+                .uri("http://localhost:8083"))
+                // Chat Service WebSocket Route
+                .route("chat-service-ws", r -> r.path("/api/chat/ws/**")
+                .filters(f -> f.rewritePath("/api/chat/ws/(?<segment>.*)", "/ws/${segment}"))
+                .metadata(RESPONSE_TIMEOUT_ATTR, 30000)
+                .metadata(CONNECT_TIMEOUT_ATTR, 5000)
                 .uri("http://localhost:8083"))
                 // Media Service Routes
                 .route("media-service", r -> r.path("/api/media/**")
@@ -167,11 +174,16 @@ public class RoutesConfig {
                 .circuitBreaker(c -> c.setName("auth-service").setFallbackUri("forward:/fallback/auth"))
                 .requestRateLimiter(c -> c.setRateLimiter(authServiceRateLimiter()).setKeyResolver(ipKeyResolver)))
                 .uri("http://auth-service:8082"))
-                // Chat Service Routes
-                .route("chat-service", r -> r.path("/api/chat/**")
+                // Chat Service Routes (REST API)
+                .route("chat-service-api", r -> r.path("/api/chat/v1/**")
                 .filters(f -> f
+                .rewritePath("/api/chat/v1/(?<segment>.*)", "/api/v1/${segment}")
                 .circuitBreaker(c -> c.setName("chat-service").setFallbackUri("forward:/fallback/chat"))
                 .requestRateLimiter(c -> c.setRateLimiter(chatServiceRateLimiter()).setKeyResolver(ipKeyResolver)))
+                .uri("http://chat-service:8083"))
+                // Chat Service WebSocket Route
+                .route("chat-service-ws", r -> r.path("/api/chat/ws/**")
+                .filters(f -> f.rewritePath("/api/chat/ws/(?<segment>.*)", "/ws/${segment}"))
                 .uri("http://chat-service:8083"))
                 // Media Service Routes  
                 .route("media-service", r -> r.path("/api/media/**")
