@@ -9,3 +9,5 @@ frontend/.env.local
 *~
 *.properties
 *.md
+*.txt
+*.jar

@@ -1,0 +1,718 @@
+{
+	"info": {
+		"_postman_id": "media-service-collection-001",
+		"name": "Media Service API",
+		"description": "Comprehensive API testing for StudyHub Media Service\n\n**Features:**\n- File upload/download\n- MinIO integration\n- Authentication with Keycloak\n- Error handling\n- Performance testing\n- Security testing\n\n**Setup:**\n1. Import this collection\n2. Configure environment variables (see Variables tab)\n3. Run \"Get Access Token\" first\n4. Test uploads, status, downloads\n\n**Created:** November 29, 2025  \n**Version:** 1.0",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8084",
+			"type": "string"
+		},
+		{
+			"key": "gatewayUrl",
+			"value": "http://localhost:8079",
+			"type": "string"
+		},
+		{
+			"key": "keycloakUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "accessToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "fileId",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "0. Authentication",
+			"item": [
+				{
+					"name": "Get Access Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"accessToken\", jsonData.access_token);",
+									"    console.log(\"Access token saved:\", jsonData.access_token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "grant_type",
+									"value": "password"
+								},
+								{
+									"key": "client_id",
+									"value": "studyhub-frontend"
+								},
+								{
+									"key": "username",
+									"value": "testuser"
+								},
+								{
+									"key": "password",
+									"value": "testpassword"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{keycloakUrl}}/realms/studyhub/protocol/openid-connect/token",
+							"host": ["{{keycloakUrl}}"],
+							"path": ["realms", "studyhub", "protocol", "openid-connect", "token"]
+						},
+						"description": "Get JWT access token from Keycloak.\n\n**Credentials:**\n- Username: testuser\n- Password: testpassword\n\n**Response:** Sets `accessToken` variable automatically"
+					}
+				}
+			]
+		},
+		{
+			"name": "1. Health Check",
+			"item": [
+				{
+					"name": "Health Check - Direct",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/media/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "health"]
+						},
+						"description": "Check if Media Service is running.\n\n**Expected:** 200 OK with \"Media Service is running\""
+					}
+				},
+				{
+					"name": "Health Check - Gateway",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{gatewayUrl}}/api/media/health",
+							"host": ["{{gatewayUrl}}"],
+							"path": ["api", "media", "health"]
+						},
+						"description": "Check health through API Gateway.\n\n**Expected:** 200 OK"
+					}
+				}
+			]
+		},
+		{
+			"name": "2. File Upload - Success",
+			"item": [
+				{
+					"name": "Upload Text File (Anonymous)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"fileId\", jsonData.fileId);",
+									"    console.log(\"File uploaded. ID:\", jsonData.fileId);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "test-files/sample.txt"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/media/upload",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "upload"]
+						},
+						"description": "Upload a text file without authentication.\n\n**Expected:** 201 Created\n**Response:** Contains fileId, message, url"
+					}
+				},
+				{
+					"name": "Upload Image File",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"imageFileId\", jsonData.fileId);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "test-files/sample.jpg"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/media/upload",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "upload"]
+						},
+						"description": "Upload an image with authentication.\n\n**Expected:** 201 Created"
+					}
+				},
+				{
+					"name": "Upload PDF Document",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "test-files/sample.pdf"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/media/upload",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "upload"]
+						}
+					}
+				},
+				{
+					"name": "Upload Video File",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "test-files/sample.mp4"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/media/upload",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "upload"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "3. File Upload - Errors",
+			"item": [
+				{
+					"name": "Upload Empty File (400)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "test-files/empty.txt"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/media/upload",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "upload"]
+						},
+						"description": "**Expected:** 400 Bad Request\n**Message:** \"No file uploaded\" or \"Invalid file\""
+					}
+				},
+				{
+					"name": "Upload Without File (400)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "notfile",
+									"value": "some data",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/media/upload",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "upload"]
+						},
+						"description": "**Expected:** 400 Bad Request"
+					}
+				},
+				{
+					"name": "Upload Large File (413)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "test-files/large-file.bin"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/media/upload",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "upload"]
+						},
+						"description": "**Expected:** 413 Payload Too Large"
+					}
+				},
+				{
+					"name": "Upload with Invalid Token (401)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "invalid.jwt.token.here"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "test-files/sample.txt"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/media/upload",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "upload"]
+						},
+						"description": "**Expected:** 401 Unauthorized"
+					}
+				}
+			]
+		},
+		{
+			"name": "4. File Status",
+			"item": [
+				{
+					"name": "Get File Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/media/files/{{fileId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "files", "{{fileId}}"]
+						},
+						"description": "Get status of uploaded file.\n\n**Expected:** 200 OK\n**Response:**\n```json\n{\n  \"fileId\": \"...\",\n  \"status\": \"READY\"\n}\n```"
+					}
+				},
+				{
+					"name": "Get Status - Non-existent File (404)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/media/files/non-existent-file-id-12345",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "files", "non-existent-file-id-12345"]
+						},
+						"description": "**Expected:** 404 Not Found"
+					}
+				},
+				{
+					"name": "Get Status - Invalid UUID (400)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/media/files/invalid-uuid",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "files", "invalid-uuid"]
+						},
+						"description": "**Expected:** 400 Bad Request or 404 Not Found"
+					}
+				}
+			]
+		},
+		{
+			"name": "5. File Download",
+			"item": [
+				{
+					"name": "Download File",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/media/files/{{fileId}}/download",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "files", "{{fileId}}", "download"]
+						},
+						"description": "Download uploaded file.\n\n**Expected:** 200 OK\n**Headers:**\n- Content-Type: [file mime type]\n- Content-Length: [file size]\n- Content-Disposition: inline/attachment"
+					}
+				},
+				{
+					"name": "Download Image (Check Headers)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/media/files/{{imageFileId}}/download",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "files", "{{imageFileId}}", "download"]
+						},
+						"description": "**Expected Headers:**\n- Content-Disposition: inline\n- Content-Type: image/*"
+					}
+				},
+				{
+					"name": "Download Non-existent File (404)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/media/files/non-existent-file-id/download",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "files", "non-existent-file-id", "download"]
+						},
+						"description": "**Expected:** 404 Not Found"
+					}
+				}
+			]
+		},
+		{
+			"name": "6. API Gateway",
+			"item": [
+				{
+					"name": "Upload via Gateway",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "test-files/sample.txt"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{gatewayUrl}}/api/media/upload",
+							"host": ["{{gatewayUrl}}"],
+							"path": ["api", "media", "upload"]
+						}
+					}
+				},
+				{
+					"name": "Get Status via Gateway",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{gatewayUrl}}/api/media/files/{{fileId}}",
+							"host": ["{{gatewayUrl}}"],
+							"path": ["api", "media", "files", "{{fileId}}"]
+						}
+					}
+				},
+				{
+					"name": "Download via Gateway",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{gatewayUrl}}/api/media/files/{{fileId}}/download",
+							"host": ["{{gatewayUrl}}"],
+							"path": ["api", "media", "files", "{{fileId}}", "download"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "7. Performance Tests",
+			"item": [
+				{
+					"name": "Upload 1MB File",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "test-files/1mb-file.bin"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/media/upload",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "upload"]
+						},
+						"description": "**Target:** < 500ms"
+					}
+				},
+				{
+					"name": "Upload 10MB File",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "test-files/10mb-file.bin"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/media/upload",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "upload"]
+						},
+						"description": "**Target:** < 2s"
+					}
+				},
+				{
+					"name": "Upload 50MB File",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "test-files/50mb-file.bin"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/media/upload",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "upload"]
+						},
+						"description": "**Target:** < 5s"
+					}
+				}
+			]
+		},
+		{
+			"name": "8. Security Tests",
+			"item": [
+				{
+					"name": "Special Characters in Filename",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "test-files/special-chars-test@#$%^&()_+-.txt"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/media/upload",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "upload"]
+						}
+					}
+				},
+				{
+					"name": "Unicode Filename",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "test-files/测试文件.txt"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/media/upload",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "upload"]
+						}
+					}
+				},
+				{
+					"name": "Emoji Filename",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "test-files/test-😀-emoji.txt"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/media/upload",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "upload"]
+						}
+					}
+				},
+				{
+					"name": "Path Traversal Test",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "test-files/path-traversal.txt"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/media/upload",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "upload"]
+						},
+						"description": "Should sanitize filename and prevent path traversal"
+					}
+				}
+			]
+		}
+	]
+}
