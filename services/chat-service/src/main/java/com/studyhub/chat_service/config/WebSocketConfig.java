@@ -1,6 +1,7 @@
 package com.studyhub.chat_service.config;
 
 import org.springframework.context.annotation.Configuration;
+import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
@@ -10,12 +11,18 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
+    private final WebSocketAuthInterceptor webSocketAuthInterceptor;
+
+    public WebSocketConfig(WebSocketAuthInterceptor webSocketAuthInterceptor) {
+        this.webSocketAuthInterceptor = webSocketAuthInterceptor;
+    }
+
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         // Enable simple in-memory broker for development
         // Clients subscribe to /topic/... destinations
         registry.enableSimpleBroker("/topic");
-        
+
         // Clients send messages to /app/... destinations
         registry.setApplicationDestinationPrefixes("/app");
     }
@@ -24,7 +31,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Register WebSocket endpoint that clients will connect to
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")  // Allow all origins in dev
-                .withSockJS();  // Enable SockJS fallback for browsers without WebSocket support
+                .setAllowedOriginPatterns("*") // Allow all origins for dev
+                .setAllowedOrigins("http://localhost:3000");  // Explicit frontend origin
+    }
+
+    @Override
+    public void configureClientInboundChannel(ChannelRegistration registration) {
+        // Register JWT interceptor for WebSocket messages
+        registration.interceptors(webSocketAuthInterceptor);
     }
 }

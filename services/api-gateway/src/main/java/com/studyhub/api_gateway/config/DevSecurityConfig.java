@@ -30,7 +30,7 @@ public class DevSecurityConfig {
     @Order(1)
     public SecurityWebFilterChain webSocketSecurityFilterChain(ServerHttpSecurity http) {
         return http
-                .securityMatcher(new PathPatternParserServerWebExchangeMatcher("/api/chat/ws/**"))
+                .securityMatcher(new PathPatternParserServerWebExchangeMatcher("/api/v1/chat/ws/**"))
                 .csrf(csrf -> csrf.disable())
                 .cors(withDefaults())
                 .authorizeExchange(exchanges -> exchanges
@@ -54,7 +54,7 @@ public class DevSecurityConfig {
                 .pathMatchers(HttpMethod.OPTIONS).permitAll()
                 // Public endpoints (no authentication required)
                 .pathMatchers(
-                        "/api/auth/**",
+                        "/api/v1/auth/**",
                         "/realms/**",
                         "/admin/**",
                         "/actuator/health",
@@ -62,9 +62,9 @@ public class DevSecurityConfig {
                 ).permitAll()
                 // Protected endpoints (require authentication)
                 .pathMatchers(
-                        "/api/users/**",
-                        "/api/chat/v1/**", // Chat REST API requires auth
-                        "/api/media/**"
+                        "/api/v1/users/**",
+                        "/api/v1/chat/v1/**", // Chat REST API requires auth
+                        "/api/v1/media/**"
                 ).authenticated()
                 .anyExchange().permitAll()
                 )

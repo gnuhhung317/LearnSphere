@@ -25,8 +25,8 @@ public class Message {
     private Long id;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "room_id", nullable = false)
-    private Room room;
+    @JoinColumn(name = "channel_id", nullable = false)
+    private Channel channel;
     
     @Column(name = "sender_id", nullable = false)
     private Long senderId;

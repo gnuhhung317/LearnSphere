@@ -27,9 +27,9 @@ public class DevHeaderAuthFilter implements WebFilter {
 
     // Protected prefix list - keep in sync with SecurityConfig's protected paths
     private final List<String> protectedPrefixes = List.of(
-            "/api/users",
-            "/api/chat",
-            "/api/media"
+            "/api/v1/users",
+            "/api/v1/chat",
+            "/api/v1/media"
     );
 
     @Override

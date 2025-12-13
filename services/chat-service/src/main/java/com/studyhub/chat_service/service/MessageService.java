@@ -1,5 +1,6 @@
 package com.studyhub.chat_service.service;
 
+import com.studyhub.chat_service.client.UserClient;
 import com.studyhub.chat_service.dto.request.AddReactionRequest;
 import com.studyhub.chat_service.dto.request.EditMessageRequest;
 import com.studyhub.chat_service.dto.request.SendMessageRequest;
@@ -13,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
@@ -24,219 +26,307 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class MessageService {
-    
+
     private static final int MAX_PINNED_MESSAGES = 5;
-    
+
     private final MessageRepository messageRepository;
     private final MessageAttachmentRepository attachmentRepository;
     private final MessageReactionRepository reactionRepository;
+    private final ChannelRepository channelRepository;
     private final RoomRepository roomRepository;
-    
+    private final SimpMessagingTemplate messagingTemplate;
+    private final UserClient userClient;
+
     @Transactional
-    public MessageResponse sendMessage(Long roomId, SendMessageRequest request, Long senderId) {
-        log.info("Sending message to room: {} by user: {}", roomId, senderId);
+    public MessageResponse sendMessage(Long roomId, Long channelId, SendMessageRequest request, Long senderId) {
+        log.info("Sending message to channel: {} in room: {} by user: {}", channelId, roomId, senderId);
+
+        // Validate at least content or attachments exist
+        boolean hasContent = request.getContent() != null && !request.getContent().trim().isEmpty();
+        boolean hasAttachments = request.getAttachments() != null && !request.getAttachments().isEmpty();
         
+        if (!hasContent && !hasAttachments) {
+            throw new IllegalArgumentException("Message must have either content or attachments");
+        }
+
         // Validate membership
         validateMembership(roomId, senderId);
-        
+
+        // Validate channel belongs to room
+        Channel channel = channelRepository.findById(channelId)
+                .orElseThrow(() -> new IllegalArgumentException("Channel not found"));
+        if (!channel.getRoom().getId().equals(roomId)) {
+            throw new IllegalArgumentException("Channel does not belong to this room");
+        }
+
         // Validate parent message if replying
         if (request.getParentMessageId() != null) {
             Message parentMessage = getMessageOrThrow(request.getParentMessageId());
-            if (!parentMessage.getRoom().getId().equals(roomId)) {
-                throw new IllegalArgumentException("Parent message does not belong to this room");
+            if (!parentMessage.getChannel().getId().equals(channelId)) {
+                throw new IllegalArgumentException("Parent message does not belong to this channel");
             }
         }
-        
+
         // Create message
         Message message = Message.builder()
-                .room(roomRepository.findById(roomId)
-                        .orElseThrow(() -> new IllegalArgumentException("Room not found")))
+                .channel(channel)
                 .senderId(senderId)
-                .content(request.getContent())
+                .content(request.getContent() != null ? request.getContent() : "")
                 .parentMessageId(request.getParentMessageId())
                 .isPinned(false)
                 .isEdited(false)
                 .isDeleted(false)
                 .build();
-        
+
         Message savedMessage = messageRepository.save(message);
-        
+
         // Save attachments
         if (request.getAttachments() != null && !request.getAttachments().isEmpty()) {
             List<MessageAttachment> attachments = request.getAttachments().stream()
                     .map(dto -> MessageAttachment.builder()
-                            .message(savedMessage)
-                            .fileId(dto.getFileId())
-                            .fileName(dto.getFileName())
-                            .fileType(dto.getFileType())
-                            .fileSize(dto.getFileSize())
-                            .build())
+                    .message(savedMessage)
+                    .fileId(dto.getFileId())
+                    .fileName(dto.getFileName())
+                    .fileType(dto.getFileType())
+                    .fileSize(dto.getFileSize())
+                    .build())
                     .collect(Collectors.toList());
-            
+
             attachmentRepository.saveAll(attachments);
         }
-        
-        return toMessageResponse(savedMessage, senderId);
+
+        MessageResponse response = toMessageResponse(savedMessage, senderId);
+
+        // Broadcast the new message to websocket subscribers of the channel
+        try {
+            messagingTemplate.convertAndSend("/topic/rooms/" + roomId + "/channels/" + channelId, response);
+        } catch (Exception e) {
+            log.error("Failed to broadcast message to WebSocket: {}", e.getMessage(), e);
+        }
+
+        return response;
     }
-    
+
     @Transactional(readOnly = true)
     public Page<MessageResponse> getMessageHistory(Long roomId, Long currentUserId, Pageable pageable) {
         log.info("Getting message history for room: {}", roomId);
-        
+
         validateMembership(roomId, currentUserId);
-        
-        return messageRepository.findByRoomIdOrderByCreatedAtDesc(roomId, pageable)
+
+        return messageRepository.findByChannelIdOrderByCreatedAtDesc(roomId, pageable)
                 .map(message -> toMessageResponse(message, currentUserId));
     }
-    
+
+    @Transactional(readOnly = true)
+    public Page<MessageResponse> getMessageHistoryByChannel(Long channelId, Long currentUserId, Pageable pageable) {
+        log.info("Getting message history for channel: {}", channelId);
+
+        // Validate channel exists and user is member of the room
+        Channel channel = channelRepository.findById(channelId)
+                .orElseThrow(() -> new IllegalArgumentException("Channel not found"));
+        
+        validateMembership(channel.getRoom().getId(), currentUserId);
+
+        return messageRepository.findByChannelIdOrderByCreatedAtDesc(channelId, pageable)
+                .map(message -> toMessageResponse(message, currentUserId));
+    }
+
     @Transactional
     public MessageResponse editMessage(Long messageId, EditMessageRequest request, Long currentUserId) {
         log.info("Editing message: {} by user: {}", messageId, currentUserId);
-        
+
         Message message = getMessageOrThrow(messageId);
-        
+
         // Only sender can edit
         if (!message.getSenderId().equals(currentUserId)) {
             throw new UnauthorizedException("Only the sender can edit this message");
         }
-        
+
         if (message.getIsDeleted()) {
             throw new IllegalStateException("Cannot edit deleted message");
         }
-        
+
         message.setContent(request.getContent());
         message.setIsEdited(true);
-        
+
         Message updatedMessage = messageRepository.save(message);
-        return toMessageResponse(updatedMessage, currentUserId);
+        MessageResponse response = toMessageResponse(updatedMessage, currentUserId);
+
+        // Broadcast edited message
+        try {
+            messagingTemplate.convertAndSend("/topic/rooms/" + response.getRoomId(), response);
+        } catch (Exception e) {
+            log.error("Failed to broadcast edited message: {}", e.getMessage(), e);
+        }
+
+        return response;
     }
-    
+
     @Transactional
     public void deleteMessage(Long messageId, Long currentUserId) {
         log.info("Deleting message: {} by user: {}", messageId, currentUserId);
-        
+
         Message message = getMessageOrThrow(messageId);
-        
+
         // Sender or room owner can delete
         boolean isSender = message.getSenderId().equals(currentUserId);
-        boolean isOwner = roomRepository.isOwnerOfRoom(message.getRoom().getId(), currentUserId);
-        
+        boolean isOwner = roomRepository.isOwnerOfRoom(message.getChannel().getRoom().getId(), currentUserId);
+
         if (!isSender && !isOwner) {
             throw new UnauthorizedException("Only sender or room owner can delete this message");
         }
-        
+
         message.setIsDeleted(true);
         message.setContent("[Deleted]");
-        messageRepository.save(message);
+        Message deleted = messageRepository.save(message);
+
+        // Broadcast deleted message (message will contain deleted flag and content change)
+        try {
+            MessageResponse response = toMessageResponse(deleted, currentUserId);
+            messagingTemplate.convertAndSend("/topic/rooms/" + response.getRoomId(), response);
+        } catch (Exception e) {
+            log.error("Failed to broadcast deleted message: {}", e.getMessage(), e);
+        }
     }
-    
+
     @Transactional
     public void addReaction(Long messageId, AddReactionRequest request, Long currentUserId) {
         log.info("Adding reaction to message: {} by user: {}", messageId, currentUserId);
-        
+
         Message message = getMessageOrThrow(messageId);
-        validateMembership(message.getRoom().getId(), currentUserId);
-        
+        validateMembership(message.getChannel().getRoom().getId(), currentUserId);
+
         // Check if reaction already exists
         MessageReactionId reactionId = new MessageReactionId(messageId, currentUserId, request.getEmoji());
         if (reactionRepository.existsById(reactionId)) {
             return; // Already reacted
         }
-        
+
         MessageReaction reaction = MessageReaction.builder()
                 .id(reactionId)
                 .message(message)
                 .build();
-        
+
         reactionRepository.save(reaction);
+
+        // Broadcast reaction update to subscribers
+        try {
+            MessageResponse response = toMessageResponse(message, currentUserId);
+            messagingTemplate.convertAndSend("/topic/rooms/" + response.getRoomId(), response);
+        } catch (Exception e) {
+            log.error("Failed to broadcast reaction added: {}", e.getMessage(), e);
+        }
     }
-    
+
     @Transactional
     public void removeReaction(Long messageId, String emoji, Long currentUserId) {
         log.info("Removing reaction from message: {} by user: {}", messageId, currentUserId);
-        
+
         Message message = getMessageOrThrow(messageId);
-        validateMembership(message.getRoom().getId(), currentUserId);
-        
+        validateMembership(message.getChannel().getRoom().getId(), currentUserId);
+
         MessageReactionId reactionId = new MessageReactionId(messageId, currentUserId, emoji);
         reactionRepository.deleteById(reactionId);
+
+        // Broadcast reaction update to subscribers
+        try {
+            MessageResponse response = toMessageResponse(message, currentUserId);
+            messagingTemplate.convertAndSend("/topic/rooms/" + response.getRoomId(), response);
+        } catch (Exception e) {
+            log.error("Failed to broadcast reaction removed: {}", e.getMessage(), e);
+        }
     }
-    
+
     @Transactional
     public MessageResponse pinMessage(Long messageId, Long currentUserId) {
         log.info("Pinning message: {} by user: {}", messageId, currentUserId);
-        
+
         Message message = getMessageOrThrow(messageId);
-        Long roomId = message.getRoom().getId();
-        
+        Long roomId = message.getChannel().getRoom().getId();
+
         // Only room owner can pin
         if (!roomRepository.isOwnerOfRoom(roomId, currentUserId)) {
             throw new UnauthorizedException("Only room owner can pin messages");
         }
-        
+
         // Check max pinned messages
-        long pinnedCount = messageRepository.findPinnedMessagesByRoomId(roomId).size();
+        long pinnedCount = messageRepository.findPinnedMessagesByChannelId(roomId).size();
         if (pinnedCount >= MAX_PINNED_MESSAGES) {
             throw new IllegalStateException("Maximum pinned messages reached (5)");
         }
-        
+
         message.setIsPinned(true);
         Message pinnedMessage = messageRepository.save(message);
-        
-        return toMessageResponse(pinnedMessage, currentUserId);
+        MessageResponse response = toMessageResponse(pinnedMessage, currentUserId);
+
+        // Broadcast pinned message to subscribers
+        try {
+            messagingTemplate.convertAndSend("/topic/rooms/" + response.getRoomId(), response);
+        } catch (Exception e) {
+            log.error("Failed to broadcast pinned message: {}", e.getMessage(), e);
+        }
+
+        return response;
     }
-    
+
     @Transactional
     public void unpinMessage(Long messageId, Long currentUserId) {
         log.info("Unpinning message: {} by user: {}", messageId, currentUserId);
-        
+
         Message message = getMessageOrThrow(messageId);
-        
+
         // Only room owner can unpin
-        if (!roomRepository.isOwnerOfRoom(message.getRoom().getId(), currentUserId)) {
+        if (!roomRepository.isOwnerOfRoom(message.getChannel().getRoom().getId(), currentUserId)) {
             throw new UnauthorizedException("Only room owner can unpin messages");
         }
-        
+
         message.setIsPinned(false);
-        messageRepository.save(message);
+        Message updated = messageRepository.save(message);
+
+        // Broadcast unpinned message
+        try {
+            MessageResponse response = toMessageResponse(updated, currentUserId);
+            messagingTemplate.convertAndSend("/topic/rooms/" + response.getRoomId(), response);
+        } catch (Exception e) {
+            log.error("Failed to broadcast unpinned message: {}", e.getMessage(), e);
+        }
     }
-    
+
     @Transactional(readOnly = true)
     public List<MessageResponse> getPinnedMessages(Long roomId, Long currentUserId) {
         log.info("Getting pinned messages for room: {}", roomId);
-        
+
         validateMembership(roomId, currentUserId);
-        
-        return messageRepository.findPinnedMessagesByRoomId(roomId).stream()
+
+        return messageRepository.findPinnedMessagesByChannelId(roomId).stream()
                 .map(message -> toMessageResponse(message, currentUserId))
                 .collect(Collectors.toList());
     }
-    
+
     // Helper methods
-    
     private Message getMessageOrThrow(Long messageId) {
         return messageRepository.findById(messageId)
                 .orElseThrow(() -> new MessageNotFoundException(messageId));
     }
-    
+
     private void validateMembership(Long roomId, Long userId) {
         if (!roomRepository.existsMemberInRoom(roomId, userId)) {
             throw new UnauthorizedException("User is not a member of this room");
         }
     }
-    
+
     private MessageResponse toMessageResponse(Message message, Long currentUserId) {
         // Get attachments
-        List<MessageResponse.AttachmentInfo> attachments = 
-                attachmentRepository.findByMessageId(message.getId()).stream()
+        List<MessageResponse.AttachmentInfo> attachments
+                = attachmentRepository.findByMessageId(message.getId()).stream()
                         .map(att -> new MessageResponse.AttachmentInfo(
-                                att.getFileId(),
-                                att.getFileName(),
-                                att.getFileType(),
-                                att.getFileSize()
-                        ))
+                        att.getFileId(),
+                        att.getFileName(),
+                        att.getFileType(),
+                        att.getFileSize()
+                ))
                         .collect(Collectors.toList());
-        
+
         // Get reaction counts
         List<Object[]> reactionCounts = reactionRepository.countReactionsByMessageId(message.getId());
         Map<String, Integer> reactionCountsMap = new HashMap<>();
@@ -245,24 +335,37 @@ public class MessageService {
             Long count = (Long) result[1];
             reactionCountsMap.put(emoji, count.intValue());
         }
-        
+
         // Get user's reactions
         List<String> userReactions = reactionRepository.findByIdMessageIdAndIdUserId(
                 message.getId(), currentUserId).stream()
                 .map(reaction -> reaction.getId().getEmoji())
                 .collect(Collectors.toList());
-        
-        // TODO: Fetch sender details from User Service
-        MessageResponse.SenderInfo senderInfo = new MessageResponse.SenderInfo(
-                message.getSenderId(),
-                "user" + message.getSenderId(), // Placeholder
-                "User " + message.getSenderId(), // Placeholder
-                null // No avatar URL
-        );
-        
+
+        // Fetch sender details from User Service
+        MessageResponse.SenderInfo senderInfo;
+        try {
+            UserClient.UserInfo userInfo = userClient.getUserById(message.getSenderId());
+            senderInfo = new MessageResponse.SenderInfo(
+                    userInfo.getId(),
+                    userInfo.getUsername(),
+                    userInfo.getFullName(),
+                    userInfo.getAvatarUrl()
+            );
+        } catch (Exception e) {
+            log.warn("Failed to fetch user info for userId: {}, using placeholder", message.getSenderId(), e);
+            // Fallback to placeholder if User Service is down
+            senderInfo = new MessageResponse.SenderInfo(
+                    message.getSenderId(),
+                    "user" + message.getSenderId(),
+                    "User " + message.getSenderId(),
+                    null
+            );
+        }
+
         return MessageResponse.builder()
                 .id(message.getId())
-                .roomId(message.getRoom().getId())
+                .roomId(message.getChannel().getRoom().getId())
                 .sender(senderInfo)
                 .content(message.getContent())
                 .parentMessageId(message.getParentMessageId())

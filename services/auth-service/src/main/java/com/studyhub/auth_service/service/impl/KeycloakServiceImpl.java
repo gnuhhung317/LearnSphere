@@ -8,6 +8,7 @@ import com.studyhub.auth_service.dto.response.LoginResponse;
 import com.studyhub.auth_service.dto.response.RegisterResponse;
 import com.studyhub.auth_service.service.KeycloakService;
 import com.studyhub.common.exception.BusinessException;
+import feign.FeignException;
 import jakarta.ws.rs.core.Response;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -103,6 +104,8 @@ public class KeycloakServiceImpl implements KeycloakService {
                     .sessionState(accessTokenResponse.getSessionState())
                     .build();
 
+        } catch (FeignException.Unauthorized e) {
+            throw new BusinessException("EMAIL_OR_PASSWORD_INVALID");
         } catch (Exception e) {
             throw new BusinessException("KEYCLOAK_INTERNAL_ERROR");
         }

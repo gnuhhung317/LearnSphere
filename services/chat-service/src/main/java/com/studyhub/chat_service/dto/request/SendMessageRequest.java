@@ -14,12 +14,12 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class SendMessageRequest {
-    
-    @NotBlank(message = "Message content is required")
+
+    // Content is optional if attachments are present
     @Size(max = 5000, message = "Message content must not exceed 5000 characters")
     private String content;
-    
+
     private Long parentMessageId;
-    
+
     private List<AttachmentDto> attachments;
 }

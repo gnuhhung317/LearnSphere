@@ -17,7 +17,7 @@ public class SecurityConfig {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/api/media/health", "/api/media/test").permitAll() // Public endpoints
+                        .requestMatchers("/api/v1/media/health", "/api/v1/media/test").permitAll() // Public endpoints
                         .anyRequest().permitAll() // All other endpoints require authentication
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
