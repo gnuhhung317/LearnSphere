@@ -1,38 +1,18 @@
-server:
-  port: 8083
-
 spring:
   application:
     name: chat-service
   profiles:
     active: dev
-
----
-spring:
-  config:
-    activate:
-      on-profile: dev
-  datasource:
-    url: jdbc:h2:mem:chatdb
-    driverClassName: org.h2.Driver
-    username: sa
-    password: 
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
-  jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
-    hibernate:
-      ddl-auto: create-drop
-    show-sql: true
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/studyhub
 
 logging:
   level:
+    org.springframework.messaging: DEBUG
+    org.springframework.web.socket: DEBUG
+    org.springframework.messaging.simp: DEBUG
     com.studyhub: DEBUG
+    org.springframework.security: DEBUG

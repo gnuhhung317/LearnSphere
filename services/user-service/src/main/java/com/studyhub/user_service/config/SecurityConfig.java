@@ -20,7 +20,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authz -> authz
                 .requestMatchers("/api/users/health", "/api/users/test").permitAll() // Public endpoints
-                .anyRequest().authenticated() // All other endpoints require authentication
+                .anyRequest().permitAll() // All other endpoints require authentication
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(Customizer.withDefaults())

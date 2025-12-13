@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
 @Slf4j
 public class UserController {
@@ -44,6 +44,28 @@ public class UserController {
         String keycloakUserId = requireSubject(jwt);
         log.info("Fetching profile for keycloakUserId: {}", keycloakUserId);
         UserProfileViewResponse profile = userProfileService.getUserProfileView(keycloakUserId);
+        return ResponseEntity.ok(profile);
+    }
+
+    /**
+     * Get user profile by user ID (for service-to-service calls) This endpoint
+     * is used by other services (e.g., chat-service) to fetch user info
+     */
+    @GetMapping("/{userId}")
+    public ResponseEntity<UserProfileViewResponse> getUserById(@PathVariable Long userId) {
+        log.info("Fetching profile for userId: {}", userId);
+        UserProfileViewResponse profile = userProfileService.getUserProfileViewById(userId);
+        return ResponseEntity.ok(profile);
+    }
+
+    /**
+     * Get user profile by Keycloak ID (for JWT-based service calls) This
+     * endpoint maps Keycloak UUID to StudyHub user profile
+     */
+    @GetMapping("/keycloak/{keycloakId}")
+    public ResponseEntity<UserProfileViewResponse> getUserByKeycloakId(@PathVariable String keycloakId) {
+        log.info("Fetching profile for keycloakId: {}", keycloakId);
+        UserProfileViewResponse profile = userProfileService.getUserProfileByKeycloakId(keycloakId);
         return ResponseEntity.ok(profile);
     }
 
@@ -227,5 +249,4 @@ public class UserController {
         List<UserSummaryDto> following = userService.getFollowing(userId, keycloakUserId);
         return ResponseEntity.ok(following);
     }
-
 }

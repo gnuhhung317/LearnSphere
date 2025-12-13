@@ -8,6 +8,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 @FeignClient(name = "user-service")
 public interface UserClient {
 
-    @PostMapping("api/users")
+    @PostMapping("api/v1/users")
     RegisterResponse register(CreateUserRequest request);
 }

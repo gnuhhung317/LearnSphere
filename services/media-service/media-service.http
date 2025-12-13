@@ -1,0 +1,710 @@
+###############################################################################
+# Media Service API Testing
+# 
+# Prerequisites:
+# 1. Media Service running on localhost:8084
+# 2. MinIO running on localhost:9000
+# 3. Keycloak running on localhost:8080 (for authenticated requests)
+# 4. API Gateway running on localhost:8079 (optional, for gateway tests)
+#
+# How to use:
+# - Install REST Client extension in VS Code
+# - Click "Send Request" above each request
+# - Or use IntelliJ IDEA HTTP Client
+#
+# Test file locations:
+# - sample.txt (text file, < 5MB)
+# - sample.jpg (image file, < 10MB)
+# - sample.mp4 (video file, < 100MB)
+# - large-file.zip (> 100MB, should fail)
+###############################################################################
+
+### Variables
+@baseUrl = http://localhost:8084
+@gatewayUrl = http://localhost:8079
+@keycloakUrl = http://localhost:8080
+@realm = studyhub
+@clientId = studyhub-frontend
+
+### Get access token (replace with your username/password)
+# @name login
+POST {{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password
+&client_id={{clientId}}
+&username=testuser
+&password=testpassword
+
+###
+
+@accessToken = {{login.response.body.access_token}}
+
+###############################################################################
+# 1. Health Check
+###############################################################################
+
+### 1.1 Health Check - Direct to service
+GET {{baseUrl}}/api/media/health
+Accept: application/json
+
+### 1.2 Health Check - Through API Gateway
+GET {{gatewayUrl}}/api/media/health
+Accept: application/json
+
+###############################################################################
+# 2. File Upload Tests
+###############################################################################
+
+### 2.1 Upload text file (SUCCESS - Anonymous)
+# @name uploadText
+POST {{baseUrl}}/api/media/upload
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="sample.txt"
+Content-Type: text/plain
+
+This is a sample text file for testing.
+Hello from Media Service!
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###
+
+@textFileId = {{uploadText.response.body.fileId}}
+
+### 2.2 Upload image file (SUCCESS - Authenticated)
+# @name uploadImage
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test-image.jpg"
+Content-Type: image/jpeg
+
+< ./test-files/sample.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###
+
+@imageFileId = {{uploadImage.response.body.fileId}}
+
+### 2.3 Upload PDF file
+# @name uploadPdf
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="document.pdf"
+Content-Type: application/pdf
+
+< ./test-files/sample.pdf
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###
+
+@pdfFileId = {{uploadPdf.response.body.fileId}}
+
+### 2.4 Upload video file
+# @name uploadVideo
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="video.mp4"
+Content-Type: video/mp4
+
+< ./test-files/sample.mp4
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###
+
+@videoFileId = {{uploadVideo.response.body.fileId}}
+
+###############################################################################
+# 3. File Upload - Error Cases
+###############################################################################
+
+### 3.1 Upload without file (400 Bad Request)
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="notfile"
+
+no file here
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 3.2 Upload empty file (400 Bad Request)
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="empty.txt"
+Content-Type: text/plain
+
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 3.3 Upload file with invalid extension (if FileValidator checks extensions)
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="malicious.exe"
+Content-Type: application/octet-stream
+
+FAKE EXECUTABLE CONTENT
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 3.4 Upload file exceeding size limit (e.g., > 100MB)
+# Note: Create a large dummy file first
+# PowerShell: fsutil file createnew large-file.bin 104857600  # 100MB
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="large-file.bin"
+Content-Type: application/octet-stream
+
+< ./test-files/large-file.bin
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 3.5 Upload with wrong Content-Type header
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "file": "should be multipart/form-data"
+}
+
+###############################################################################
+# 4. File Status Checks
+###############################################################################
+
+### 4.1 Get status of uploaded text file
+GET {{baseUrl}}/api/media/files/{{textFileId}}
+Accept: application/json
+
+### 4.2 Get status of uploaded image file
+GET {{baseUrl}}/api/media/files/{{imageFileId}}
+Accept: application/json
+
+### 4.3 Get status of uploaded PDF file
+GET {{baseUrl}}/api/media/files/{{pdfFileId}}
+Accept: application/json
+
+### 4.4 Get status of uploaded video file
+GET {{baseUrl}}/api/media/files/{{videoFileId}}
+Accept: application/json
+
+### 4.5 Get status of non-existent file (404 Not Found)
+GET {{baseUrl}}/api/media/files/non-existent-file-id-12345
+Accept: application/json
+
+### 4.6 Get status with invalid UUID format
+GET {{baseUrl}}/api/media/files/invalid-uuid
+Accept: application/json
+
+###############################################################################
+# 5. File Download Tests
+###############################################################################
+
+### 5.1 Download text file
+GET {{baseUrl}}/api/media/files/{{textFileId}}/download
+Accept: */*
+
+### 5.2 Download image file (should have inline disposition)
+GET {{baseUrl}}/api/media/files/{{imageFileId}}/download
+Accept: image/*
+
+### 5.3 Download PDF file (should have attachment disposition)
+GET {{baseUrl}}/api/media/files/{{pdfFileId}}/download
+Accept: application/pdf
+
+### 5.4 Download video file
+GET {{baseUrl}}/api/media/files/{{videoFileId}}/download
+Accept: video/*
+
+### 5.5 Download non-existent file (404 Not Found)
+GET {{baseUrl}}/api/media/files/non-existent-file-id-12345/download
+Accept: */*
+
+### 5.6 Download file that is still processing (102 Processing)
+# Note: This requires a file that is still being processed
+# You may need to upload a large video file and immediately check
+GET {{baseUrl}}/api/media/files/{{videoFileId}}/download
+Accept: */*
+
+###############################################################################
+# 6. Through API Gateway
+###############################################################################
+
+### 6.1 Upload through API Gateway
+# @name uploadViaGateway
+POST {{gatewayUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="gateway-test.txt"
+Content-Type: text/plain
+
+Testing upload through API Gateway
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###
+
+@gatewayFileId = {{uploadViaGateway.response.body.fileId}}
+
+### 6.2 Get status through API Gateway
+GET {{gatewayUrl}}/api/media/files/{{gatewayFileId}}
+Authorization: Bearer {{accessToken}}
+Accept: application/json
+
+### 6.3 Download through API Gateway
+GET {{gatewayUrl}}/api/media/files/{{gatewayFileId}}/download
+Authorization: Bearer {{accessToken}}
+Accept: */*
+
+###############################################################################
+# 7. Multiple File Upload Tests (Concurrent)
+###############################################################################
+
+### 7.1 Upload multiple files simultaneously
+# Note: Send these requests in parallel to test concurrency
+
+### File 1
+# @name upload1
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="concurrent-1.txt"
+Content-Type: text/plain
+
+Concurrent upload test 1
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### File 2
+# @name upload2
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="concurrent-2.txt"
+Content-Type: text/plain
+
+Concurrent upload test 2
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### File 3
+# @name upload3
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="concurrent-3.txt"
+Content-Type: text/plain
+
+Concurrent upload test 3
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###############################################################################
+# 8. File Type-Specific Tests
+###############################################################################
+
+### 8.1 Upload various image formats
+
+### JPEG
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test.jpg"
+Content-Type: image/jpeg
+
+< ./test-files/test.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### PNG
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test.png"
+Content-Type: image/png
+
+< ./test-files/test.png
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### GIF
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test.gif"
+Content-Type: image/gif
+
+< ./test-files/test.gif
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 8.2 Upload various document formats
+
+### DOCX
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="document.docx"
+Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+
+< ./test-files/document.docx
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### XLSX
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="spreadsheet.xlsx"
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+
+< ./test-files/spreadsheet.xlsx
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### PPTX
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="presentation.pptx"
+Content-Type: application/vnd.openxmlformats-officedocument.presentationml.presentation
+
+< ./test-files/presentation.pptx
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 8.3 Upload various video formats
+
+### MP4
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="video.mp4"
+Content-Type: video/mp4
+
+< ./test-files/video.mp4
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### WebM
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="video.webm"
+Content-Type: video/webm
+
+< ./test-files/video.webm
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 8.4 Upload audio files
+
+### MP3
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="audio.mp3"
+Content-Type: audio/mpeg
+
+< ./test-files/audio.mp3
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### WAV
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="audio.wav"
+Content-Type: audio/wav
+
+< ./test-files/audio.wav
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###############################################################################
+# 9. Performance & Load Testing
+###############################################################################
+
+### 9.1 Upload small files rapidly (simulate burst traffic)
+# Run this multiple times quickly
+
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="burst-test.txt"
+Content-Type: text/plain
+
+Burst traffic test - {{$timestamp}}
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 9.2 Upload medium-sized file (10MB)
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="medium-file.bin"
+Content-Type: application/octet-stream
+
+< ./test-files/10mb-file.bin
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 9.3 Upload large file (50MB)
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="large-file.bin"
+Content-Type: application/octet-stream
+
+< ./test-files/50mb-file.bin
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###############################################################################
+# 10. Edge Cases & Security Tests
+###############################################################################
+
+### 10.1 Upload file with special characters in filename
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test@#$%^&()_+-=[]{}|;',.txt"
+Content-Type: text/plain
+
+File with special characters in name
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 10.2 Upload file with Unicode filename
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="测试文件.txt"
+Content-Type: text/plain
+
+Unicode filename test - 中文文件名
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 10.3 Upload file with emoji in filename
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test-😀-emoji.txt"
+Content-Type: text/plain
+
+Emoji in filename test
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 10.4 Upload file with very long filename (> 255 chars)
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="this-is-a-very-long-filename-that-exceeds-the-normal-limit-of-255-characters-and-should-be-tested-to-see-how-the-system-handles-it-because-some-filesystems-have-limits-on-filename-length-and-we-need-to-ensure-our-application-handles-this-gracefully-without-crashing-or-causing-data-loss.txt"
+Content-Type: text/plain
+
+Long filename test
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 10.5 Upload file with null bytes in content (security test)
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="null-bytes.txt"
+Content-Type: text/plain
+
+Content with null byte: \0 here
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 10.6 Path traversal attempt in filename
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="../../etc/passwd"
+Content-Type: text/plain
+
+Path traversal security test
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 10.7 SQL injection attempt in filename
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="'; DROP TABLE media_files; --.txt"
+Content-Type: text/plain
+
+SQL injection security test
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###############################################################################
+# 11. CORS & Preflight Tests
+###############################################################################
+
+### 11.1 OPTIONS preflight request
+OPTIONS {{baseUrl}}/api/media/upload
+Origin: http://localhost:3000
+Access-Control-Request-Method: POST
+Access-Control-Request-Headers: authorization, content-type
+
+### 11.2 Upload with custom Origin header
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Origin: http://localhost:3000
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="cors-test.txt"
+Content-Type: text/plain
+
+CORS test from frontend
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###############################################################################
+# 12. Authentication & Authorization Tests
+###############################################################################
+
+### 12.1 Upload without authentication (should work for anonymous)
+POST {{baseUrl}}/api/media/upload
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="anonymous.txt"
+Content-Type: text/plain
+
+Anonymous upload test
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 12.2 Upload with invalid token (401 Unauthorized)
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer invalid.jwt.token.here
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="invalid-token.txt"
+Content-Type: text/plain
+
+Invalid token test
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 12.3 Upload with expired token (401 Unauthorized)
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjE1MTYyMzkwMjJ9.expired
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="expired-token.txt"
+Content-Type: text/plain
+
+Expired token test
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###############################################################################
+# 13. MinIO Integration Tests
+###############################################################################
+
+### 13.1 Verify file exists in MinIO after upload
+# After uploading, manually check MinIO console at http://localhost:9001
+# Login: minioadmin / minioadmin
+# Bucket: media
+# Object key: {fileId}
+
+### 13.2 Test with MinIO unavailable
+# Stop MinIO: docker stop <minio-container-id>
+# Try uploading - should fail gracefully
+POST {{baseUrl}}/api/media/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="minio-down-test.txt"
+Content-Type: text/plain
+
+Testing with MinIO down
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###############################################################################
+# 14. Response Header Validation
+###############################################################################
+
+### 14.1 Check Content-Disposition for image (should be inline)
+# @name imageDownload
+GET {{baseUrl}}/api/media/files/{{imageFileId}}/download
+Accept: */*
+
+### Verify headers:
+# - Content-Disposition: inline; filename="..."
+# - Content-Type: image/jpeg
+# - Content-Length: <size>
+
+### 14.2 Check Content-Disposition for PDF (should be attachment)
+# @name pdfDownload
+GET {{baseUrl}}/api/media/files/{{pdfFileId}}/download
+Accept: */*
+
+### Verify headers:
+# - Content-Disposition: attachment; filename="..."
+# - Content-Type: application/pdf
+# - Content-Length: <size>
+
+###############################################################################
+# 15. Cleanup (Optional)
+###############################################################################
+
+### 15.1 List all uploaded files (if endpoint exists)
+# GET {{baseUrl}}/api/media/files
+# Authorization: Bearer {{accessToken}}
+
+### 15.2 Delete files (if endpoint exists)
+# DELETE {{baseUrl}}/api/media/files/{{textFileId}}
+# Authorization: Bearer {{accessToken}}
+
+###############################################################################
+# End of Media Service API Tests
+###############################################################################

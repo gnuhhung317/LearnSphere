@@ -1,0 +1,639 @@
+{
+	"info": {
+		"_postman_id": "chat-service-crud-collection",
+		"name": "Chat Service - CRUD Tests",
+		"description": "Minimal CRUD operations for Chat Service (Rooms & Messages)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{jwt_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"item": [
+		{
+			"name": "Room CRUD",
+			"item": [
+				{
+					"name": "1. Create Room",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    if (response.data && response.data.id) {",
+									"        pm.environment.set('roomId', response.data.id);",
+									"        pm.environment.set('roomName', response.data.name);",
+									"        console.log('Room created with ID:', response.data.id);",
+									"    }",
+									"}",
+									"",
+									"pm.test('Status is 201 Created', function() {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response has room data', function() {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.data).to.have.property('id');",
+									"    pm.expect(response.data).to.have.property('name');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Study Group 101\",\n  \"description\": \"General study discussion\",\n  \"isPublic\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v1/rooms",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"rooms"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "2. Get Room Details",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status is 200 OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Room details retrieved', function() {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.data).to.have.property('id');",
+									"    pm.expect(response.data).to.have.property('name');",
+									"    pm.expect(response.data).to.have.property('description');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/rooms/{{roomId}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"rooms",
+								"{{roomId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "3. Update Room",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status is 200 OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Room updated successfully', function() {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.message).to.include('updated');",
+									"    pm.expect(response.data.name).to.include('Updated');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Study Group 101 - Updated\",\n  \"description\": \"Updated description for testing\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v1/rooms/{{roomId}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"rooms",
+								"{{roomId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "4. Get My Rooms",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status is 200 OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Returns array of rooms', function() {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.data).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/rooms/my-rooms",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"rooms",
+								"my-rooms"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "5. Get Public Rooms",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status is 200 OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Returns array of public rooms', function() {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.data).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/rooms/public",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"rooms",
+								"public"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "6. Delete Room",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status is 200 OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Room deleted successfully', function() {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.message).to.include('deleted');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/rooms/{{roomId}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"rooms",
+								"{{roomId}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Message CRUD",
+			"item": [
+				{
+					"name": "1. Get Message History",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status is 200 OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Returns paginated messages', function() {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.data).to.have.property('content');",
+									"    pm.expect(response.data).to.have.property('totalElements');",
+									"    pm.expect(response.data.content).to.be.an('array');",
+									"});",
+									"",
+									"// Save first message ID if available",
+									"const response = pm.response.json();",
+									"if (response.data.content && response.data.content.length > 0) {",
+									"    pm.environment.set('messageId', response.data.content[0].id);",
+									"    console.log('Message ID saved:', response.data.content[0].id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/messages/rooms/{{roomId}}?page=0&size=50",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"messages",
+								"rooms",
+								"{{roomId}}"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "50"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "2. Edit Message",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status is 200 OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Message edited successfully', function() {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.message).to.include('edited');",
+									"    pm.expect(response.data.content).to.include('Updated');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Updated message content for testing\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v1/messages/{{messageId}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"messages",
+								"{{messageId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "3. Delete Message",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status is 200 OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Message deleted successfully', function() {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.message).to.include('deleted');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/messages/{{messageId}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"messages",
+								"{{messageId}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Room Members",
+			"item": [
+				{
+					"name": "1. Join Room",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status is 200 OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Joined room successfully', function() {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.message).to.include('joined');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v1/rooms/{{roomId}}/join",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"rooms",
+								"{{roomId}}",
+								"join"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "2. Get Room Members",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status is 200 OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Returns array of members', function() {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.data).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/rooms/{{roomId}}/members",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"rooms",
+								"{{roomId}}",
+								"members"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "3. Leave Room",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status is 200 OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Left room successfully', function() {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.message).to.include('left');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/rooms/{{roomId}}/leave",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"rooms",
+								"{{roomId}}",
+								"leave"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Message Reactions",
+			"item": [
+				{
+					"name": "1. Add Reaction",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status is 200 OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"emoji\": \"👍\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v1/messages/{{messageId}}/reactions",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"messages",
+								"{{messageId}}",
+								"reactions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "2. Remove Reaction",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status is 200 OK', function() {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/messages/{{messageId}}/reactions/👍",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"messages",
+								"{{messageId}}",
+								"reactions",
+								"👍"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8079/api",
+			"type": "string"
+		}
+	]
+}

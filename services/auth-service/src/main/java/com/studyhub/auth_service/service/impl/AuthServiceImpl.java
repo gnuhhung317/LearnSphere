@@ -10,8 +10,10 @@ import com.studyhub.auth_service.service.AuthService;
 import com.studyhub.auth_service.service.KeycloakService;
 import com.studyhub.common.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
@@ -23,8 +25,9 @@ public class AuthServiceImpl implements AuthService {
     public RegisterResponse register(RegisterRequest request) {
         CreateUserRequest createUserRequest = keycloakService.createUser(request);
         try {
+            log.info("Created user in Keycloak: {}", createUserRequest.getKeycloakUserId());
             RegisterResponse registerResponse = userClient.register(createUserRequest);
-
+            log.info("Created user in user-service: {}", registerResponse.getUserId());
             // Build and return success response
             return RegisterResponse.builder()
                     .userId(registerResponse.getUserId())

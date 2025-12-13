@@ -20,7 +20,7 @@ import java.io.InputStream;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/media")
+@RequestMapping("/api/v1/media")
 public class MediaController {
 
     private final MediaService mediaService;

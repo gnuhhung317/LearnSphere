@@ -8,6 +8,7 @@ import com.studyhub.user_service.entity.UserProfile;
 import com.studyhub.user_service.entity.UserStats;
 import com.studyhub.user_service.mapper.UserMapper;
 import com.studyhub.user_service.repository.LearningPathRepository;
+import com.studyhub.user_service.repository.UserRepository;
 import com.studyhub.user_service.repository.UserProfileRepository;
 import com.studyhub.user_service.repository.UserStatsRepository;
 import com.studyhub.user_service.service.UserProfileService;
@@ -27,6 +28,7 @@ import java.util.List;
 public class UserProfileServiceImpl implements UserProfileService {
 
     private final UserService userService;
+    private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final UserStatsRepository userStatsRepository;
     private final LearningPathRepository learningPathRepository;
@@ -38,6 +40,41 @@ public class UserProfileServiceImpl implements UserProfileService {
         log.info("Fetching profile view for keycloakUserId: {}", keycloakUserId);
 
         User user = userService.getUserByKeycloakId(keycloakUserId);
+
+        // Ensure UserProfile exists
+        if (user.getUserProfile() == null) {
+            UserProfile userProfile = new UserProfile();
+            userProfile.setUser(user);
+            userProfileRepository.save(userProfile);
+            user.setUserProfile(userProfile);
+        }
+
+        // Ensure UserStats exists
+        if (user.getUserStats() == null) {
+            UserStats userStats = new UserStats();
+            userStats.setUser(user);
+            userStatsRepository.save(userStats);
+            user.setUserStats(userStats);
+        }
+
+        return userMapper.toProfileViewResponse(user);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserProfileViewResponse getUserProfileByKeycloakId(String keycloakUserId) {
+        log.info("Getting profile view for keycloakUserId: {}", keycloakUserId);
+        // Delegate to existing method
+        return getUserProfileView(keycloakUserId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserProfileViewResponse getUserProfileViewById(Long userId) {
+        log.info("Getting profile view for userId: {}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
 
         // Ensure UserProfile exists
         if (user.getUserProfile() == null) {

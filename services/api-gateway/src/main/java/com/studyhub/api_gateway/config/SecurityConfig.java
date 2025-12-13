@@ -29,7 +29,7 @@ public class SecurityConfig {
                 .pathMatchers(HttpMethod.OPTIONS).permitAll()
                 // Public endpoints (no authentication required)
                 .pathMatchers(
-                        "/api/auth/**",
+                        "/api/v1/auth/**",
                         "/realms/**",
                         "/admin/**",
                         "/actuator/health",
@@ -37,9 +37,9 @@ public class SecurityConfig {
                 ).permitAll()
                 // Protected endpoints (require authentication)
                 .pathMatchers(
-                        "/api/users/**",
-                        "/api/chat/**",
-                        "/api/media/**"
+                        "/api/v1/users/**",
+                        "/api/v1/chat/**",
+                        "/api/v1/media/**"
                 ).authenticated()
                 .anyExchange().permitAll()
                 )

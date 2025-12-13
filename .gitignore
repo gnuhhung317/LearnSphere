@@ -8,3 +8,6 @@ frontend/.env.local
 *.yaml*
 *~
 *.properties
+*.md
+*.txt
+*.jar
