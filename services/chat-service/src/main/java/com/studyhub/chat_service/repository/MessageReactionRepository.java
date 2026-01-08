@@ -18,5 +18,11 @@ public interface MessageReactionRepository extends JpaRepository<MessageReaction
     @Query("SELECT mr.id.emoji, COUNT(mr) FROM MessageReaction mr WHERE mr.id.messageId = :messageId GROUP BY mr.id.emoji")
     List<Object[]> countReactionsByMessageId(@Param("messageId") Long messageId);
     
-    List<MessageReaction> findByIdMessageIdAndIdUserId(Long messageId, Long userId);
+    List<MessageReaction> findByIdMessageIdAndIdUserId(Long messageId, String userId);
+
+    @Query("SELECT mr.id.messageId, mr.id.emoji, COUNT(mr) FROM MessageReaction mr WHERE mr.id.messageId IN :messageIds GROUP BY mr.id.messageId, mr.id.emoji")
+    List<Object[]> countReactionsByMessageIdIn(@Param("messageIds") List<Long> messageIds);
+
+    @Query("SELECT mr FROM MessageReaction mr WHERE mr.id.messageId IN :messageIds AND mr.id.userId = :userId")
+    List<MessageReaction> findByMessageIdInAndUserId(@Param("messageIds") List<Long> messageIds, @Param("userId") String userId);
 }

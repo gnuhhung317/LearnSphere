@@ -26,7 +26,7 @@ public class ChannelController {
     @PostMapping
     public ResponseEntity<ApiResponse<ChannelResponse>> createChannel(
             @Valid @RequestBody CreateChannelRequest request) {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("POST /api/v1/channels - Creating channel: {} in room: {} by user: {}", 
             request.getName(), request.getRoomId(), userId);
 
@@ -40,7 +40,7 @@ public class ChannelController {
     public ResponseEntity<ApiResponse<ChannelResponse>> updateChannel(
             @PathVariable Long channelId,
             @Valid @RequestBody UpdateChannelRequest request) {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("PUT /api/v1/channels/{} - Updating channel by user: {}", channelId, userId);
 
         ChannelResponse response = channelService.updateChannel(channelId, request, userId);
@@ -49,7 +49,7 @@ public class ChannelController {
 
     @DeleteMapping("/{channelId}")
     public ResponseEntity<ApiResponse<Void>> deleteChannel(@PathVariable Long channelId) {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("DELETE /api/v1/channels/{} - Deleting channel by user: {}", channelId, userId);
 
         channelService.deleteChannel(channelId, userId);
@@ -58,7 +58,7 @@ public class ChannelController {
 
     @GetMapping("/{channelId}")
     public ResponseEntity<ApiResponse<ChannelResponse>> getChannelById(@PathVariable Long channelId) {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("GET /api/v1/channels/{} - Getting channel details for user: {}", channelId, userId);
 
         ChannelResponse response = channelService.getChannelById(channelId, userId);
@@ -67,7 +67,7 @@ public class ChannelController {
 
     @GetMapping("/room/{roomId}")
     public ResponseEntity<ApiResponse<List<ChannelResponse>>> getRoomChannels(@PathVariable Long roomId) {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("GET /api/v1/channels/room/{} - Getting channels for user: {}", roomId, userId);
 
         List<ChannelResponse> response = channelService.getRoomChannels(roomId, userId);

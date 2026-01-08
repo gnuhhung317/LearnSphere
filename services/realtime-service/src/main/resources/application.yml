@@ -1,0 +1,46 @@
+server:
+  port: 8085
+spring:
+  application:
+    name: realtime-service
+  datasource:
+    url: jdbc:h2:mem:realtimedb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://keycloak.studyhub.local/realms/studyhub
+          jwk-set-uri: http://keycloak.studyhub.local/realms/studyhub/protocol/openid-connect/certs
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.studyhub.realtime_service: DEBUG
+    org.springframework.web.socket: DEBUG
+
+livekit:
+  url: http://localhost:7880
+  api-key: devkey
+  api-secret: secret

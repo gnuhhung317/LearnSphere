@@ -6,6 +6,7 @@ import com.studyhub.common.exception.BusinessException;
 import com.studyhub.user_service.dto.CreateUserRequest;
 import com.studyhub.user_service.dto.UserResponse;
 import com.studyhub.user_service.dto.UserSummaryDto;
+import com.studyhub.user_service.dto.UserInfo;
 import com.studyhub.user_service.entity.User;
 import com.studyhub.user_service.entity.UserFollower;
 import com.studyhub.user_service.exception.UserAlreadyExistsException;
@@ -19,7 +20,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -64,22 +64,23 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public User getUserByKeycloakId(String keycloakUserId) {
         return userRepository.findByKeycloakUserId(keycloakUserId)
                 .orElseThrow(() -> new UserNotFoundException("keycloakUserId", keycloakUserId));
     }
+    @Transactional(readOnly = true)
+    public List<UserInfo> getBasicBulk(List<String> keycloakIds){
+        return userMapper.toUserBasicList(userRepository.findAllByKeycloakUserIdIn(keycloakIds));
+    }
 
+    @Transactional(readOnly = true)
+    public UserInfo getBasic(String keycloakUserId){
+        return userMapper.toUserBasic(getUserByKeycloakId(keycloakUserId));
+    }
     @Transactional(readOnly = true)
     public User getUserById(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException(id));
-    }
-
-    @Transactional(readOnly = true)
-    public User getUserByEmail(String email) {
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new UserNotFoundException("email", email));
     }
 
     @Transactional

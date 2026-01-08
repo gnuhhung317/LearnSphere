@@ -31,4 +31,19 @@ public interface MediaService {
      * Stream file content from storage
      */
     InputStream getFileContent(String fileId) throws Exception;
+    
+    /**
+     * Store file with room context
+     */
+    MediaFile storeFileInRoom(MultipartFile file, String uploadedBy, Long roomId) throws Exception;
+    
+    /**
+     * Get all files uploaded to a room
+     */
+    java.util.List<MediaFile> getRoomFiles(Long roomId);
+    
+    /**
+     * Get files by room and type
+     */
+    java.util.List<MediaFile> getRoomFilesByType(Long roomId, MediaFile.FileType fileType);
 }

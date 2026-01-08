@@ -76,7 +76,7 @@ spring:
         - id: chat-service-api
           uri: http://localhost:8083
           predicates:
-            - Path=/api/v1/rooms/**, /api/v1/messages/**, /api/v1/channels/**
+            - Path=/api/v1/rooms/**, /api/v1/messages/**, /api/v1/channels/**, /api/v1/files/**
           filters:
             - name: CircuitBreaker
               args:
@@ -135,11 +135,11 @@ spring:
             response-timeout: 30000
             connect-timeout: 5000
 
-        # Real-time Service Routes (WebSocket support)
-        - id: realtime-service
+        # Real-time Service Routes - REST API
+        - id: realtime-service-api
           uri: http://localhost:8085
           predicates:
-            - Path=/api/realtime/**
+            - Path=/api/v1/realtime/**
           filters:
             - name: CircuitBreaker
               args:
@@ -150,9 +150,28 @@ spring:
                   - 502
                   - 503
                   - 504
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
           metadata:
             response-timeout: 15000
             connect-timeout: 3000
+        
+        # Real-time Service Routes - WebSocket
+        - id: realtime-service-ws
+          uri: ws://localhost:8085
+          predicates:
+            - Path=/ws/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: realtime-service-ws
+                fallbackUri: forward:/fallback/realtime
+          metadata:
+            response-timeout: 300000
+            connect-timeout: 10000
 
         # AI Service Routes
         - id: ai-service
@@ -212,31 +231,6 @@ spring:
             connect-timeout: 2000
 
       # Global CORS configuration
-      globalcors:
-        cors-configurations:
-          '[/**]':
-            allowedOriginPatterns: 
-              - "http://localhost:*"
-              - "https://localhost:*"
-              - "http://127.0.0.1:*"
-              - "https://127.0.0.1:*"
-            allowedMethods:
-              - GET
-              - POST
-              - PUT
-              - DELETE
-              - OPTIONS
-              - PATCH
-            allowedHeaders:
-              - "*"
-            exposedHeaders:
-              - "Authorization"
-              - "Content-Type"
-              - "X-Requested-With"
-              - "X-Total-Count"
-            allowCredentials: true
-            maxAge: 3600
-
       # Default filters applied to all routes
       default-filters:
         - name: SecureHeaders
@@ -254,13 +248,37 @@ spring:
         - name: RemoveResponseHeader
           args:
             name: Server
+#      server:
+#        webflux:
+#          globalcors:
+#            cors-configurations:
+#              '[/**]':
+#                          allowedOriginPatterns:
+#                            - "http://localhost:3000"
+#                            - "http://127.0.0.1:3000"
+#                          allowedMethods:
+#                            - GET
+#                            - POST
+#                            - PUT
+#                            - DELETE
+#                            - OPTIONS
+#                            - PATCH
+#                          allowedHeaders:
+#                            - "*"
+#                          exposedHeaders:
+#                            - "Authorization"
+#                            - "Content-Type"
+#                            - "X-Requested-With"
+#                            - "X-Total-Count"
+#                          allowCredentials: true
+#                          maxAge: 3600
 
   # OAuth2 Resource Server Configuration
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8080/realms/studyhub
+          issuer-uri: http://keycloak.studyhub.local/realms/studyhub
 
 # Redis Configuration for Rate Limiting
   redis:
@@ -578,7 +596,7 @@ spring:
         - id: media-service
           uri: http://media-service:8084
         - id: realtime-service
-          uri: http://realtime-service:8085
+          uri: http://localhost:8085
         - id: ai-service
           uri: http://ai-service:8086
         - id: search-service

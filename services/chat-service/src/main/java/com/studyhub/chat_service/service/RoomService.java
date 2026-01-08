@@ -1,5 +1,6 @@
 package com.studyhub.chat_service.service;
 
+import com.studyhub.chat_service.client.UserClient;
 import com.studyhub.chat_service.dto.request.CreateDirectMessageRequest;
 import com.studyhub.chat_service.dto.request.CreateRoomRequest;
 import com.studyhub.chat_service.dto.request.InviteMemberRequest;
@@ -18,15 +19,15 @@ import com.studyhub.chat_service.exception.RoomNotFoundException;
 import com.studyhub.chat_service.exception.UnauthorizedException;
 import com.studyhub.chat_service.repository.RoomMemberRepository;
 import com.studyhub.chat_service.repository.RoomRepository;
+import com.studyhub.common.dto.KeycloakUserIdList;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -36,12 +37,14 @@ public class RoomService {
 
     private static final int MAX_MEMBERS = 50;
 
+    private final UserClient userClient;
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final EventPublisherService eventPublisher;
 
     @Transactional
-    public RoomResponse createRoom(CreateRoomRequest request, Long currentUserId) {
+    public RoomResponse createRoom(CreateRoomRequest request, String currentUserId) {
         log.info("Creating room: {} by user: {}", request.getName(), currentUserId);
 
         Room room = Room.builder()
@@ -65,8 +68,15 @@ public class RoomService {
                 .name("General")
                 .room(savedRoom) // Set bidirectional relationship
                 .build();
-        savedRoom.getChannels().add(generalChannel);
+        if (!Objects.isNull(savedRoom.getChannels())) {
+            savedRoom.getChannels().add(generalChannel);
+        }else {
+            List<Channel> channels = new ArrayList<>();
+            channels.add(generalChannel);
+            savedRoom.setChannels(channels);
+        }
 
+        savedRoom = roomRepository.save(savedRoom);
         // Add creator as owner
         RoomMember creatorMember = RoomMember.builder()
                 .id(new RoomMemberId(savedRoom.getId(), currentUserId))
@@ -78,11 +88,27 @@ public class RoomService {
         // Save again to persist channel (cascade will save the channel)
         savedRoom = roomRepository.save(savedRoom);
 
+        // Publish RoomCreated event to Kafka
+        try {
+            var event = com.studyhub.chat_service.event.RoomCreatedEvent.from(
+                    savedRoom.getId(),
+                    savedRoom.getName(),
+                    savedRoom.getDescription(),
+                    currentUserId,
+                    savedRoom.getRoomType(),
+                    savedRoom.getIsPublic(),
+                    savedRoom.getCreatedAt()
+            );
+            eventPublisher.publishRoomCreated(event);
+        } catch (Exception e) {
+            log.error("Failed to publish RoomCreated event: {}", e.getMessage(), e);
+        }
+
         return toRoomResponse(savedRoom, currentUserId);
     }
 
     @Transactional
-    public RoomResponse updateRoom(Long roomId, UpdateRoomRequest request, Long currentUserId) {
+    public RoomResponse updateRoom(Long roomId, UpdateRoomRequest request, String currentUserId) {
         log.info("Updating room: {} by user: {}", roomId, currentUserId);
 
         Room room = getRoomOrThrow(roomId);
@@ -107,7 +133,7 @@ public class RoomService {
     }
 
     @Transactional
-    public void deleteRoom(Long roomId, Long currentUserId) {
+    public void deleteRoom(Long roomId, String currentUserId) {
         log.info("Deleting room: {} by user: {}", roomId, currentUserId);
 
         Room room = getRoomOrThrow(roomId);
@@ -117,7 +143,7 @@ public class RoomService {
     }
 
     @Transactional(readOnly = true)
-    public RoomResponse getRoomById(Long roomId, Long currentUserId) {
+    public RoomResponse getRoomById(Long roomId, String currentUserId) {
         Room room = getRoomOrThrow(roomId);
 
         // Check if user is member for private rooms
@@ -129,12 +155,12 @@ public class RoomService {
     }
 
     @Transactional(readOnly = true)
-    public List<RoomSummary> getUserRooms(Long userId) {
+    public List<RoomSummary> getUserRooms(String userId) {
         log.info("Getting rooms for user: {}", userId);
 
         return roomRepository.findRoomsByUserId(userId).stream()
                 .map(this::toRoomSummary)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -143,11 +169,11 @@ public class RoomService {
 
         return roomRepository.findPublicRooms().stream()
                 .map(this::toRoomSummary)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Transactional
-    public RoomResponse joinRoom(Long roomId, JoinRoomRequest request, Long currentUserId) {
+    public RoomResponse joinRoom(Long roomId, JoinRoomRequest request, String currentUserId) {
         log.info("User: {} joining room: {}", currentUserId, roomId);
 
         Room room = getRoomOrThrow(roomId);
@@ -179,6 +205,20 @@ public class RoomService {
                 .build();
         roomMemberRepository.save(member);
 
+        // Publish UserJoinedRoom event to Kafka
+        try {
+            var event = com.studyhub.chat_service.event.UserJoinedRoomEvent.from(
+                    roomId,
+                    currentUserId,
+                    "user_" + currentUserId, // TODO: Get actual username from UserClient
+                    "MEMBER",
+                    member.getJoinedAt()
+            );
+            eventPublisher.publishUserJoinedRoom(event);
+        } catch (Exception e) {
+            log.error("Failed to publish UserJoinedRoom event: {}", e.getMessage(), e);
+        }
+
         // Broadcast new member to room members via websocket
         try {
             MemberResponse memberResponse = toMemberResponse(member);
@@ -191,7 +231,7 @@ public class RoomService {
     }
 
     @Transactional
-    public void leaveRoom(Long roomId, Long currentUserId) {
+    public void leaveRoom(Long roomId, String currentUserId) {
         log.info("User: {} leaving room: {}", currentUserId, roomId);
 
         Room room = getRoomOrThrow(roomId);
@@ -213,7 +253,7 @@ public class RoomService {
     }
 
     @Transactional
-    public void inviteMember(Long roomId, InviteMemberRequest request, Long currentUserId) {
+    public void inviteMember(Long roomId, InviteMemberRequest request, String currentUserId) {
         log.info("User: {} inviting user: {} to room: {}", currentUserId, request.getUserId(), roomId);
 
         validateMembership(roomId, currentUserId);
@@ -248,7 +288,7 @@ public class RoomService {
     }
 
     @Transactional
-    public void removeMember(Long roomId, Long memberUserId, Long currentUserId) {
+    public void removeMember(Long roomId, String memberUserId, String currentUserId) {
         log.info("User: {} removing user: {} from room: {}", currentUserId, memberUserId, roomId);
 
         validateOwnership(roomId, currentUserId);
@@ -270,14 +310,57 @@ public class RoomService {
     }
 
     @Transactional(readOnly = true)
-    public List<MemberResponse> getRoomMembers(Long roomId, Long currentUserId) {
+    public List<MemberResponse> getRoomMembers(Long roomId, String currentUserId) {
         log.info("Getting members of room: {}", roomId);
 
         validateMembership(roomId, currentUserId);
 
-        return roomMemberRepository.findByRoomId(roomId).stream()
-                .map(this::toMemberResponse)
-                .collect(Collectors.toList());
+        List<RoomMember> roomMembers = roomMemberRepository.findByRoomId(roomId);
+
+        return toMemberResponseList(roomMembers);
+    }
+
+    @Transactional
+    public void transferOwnership(Long roomId, String newOwnerUserId, String currentUserId) {
+        log.info("User: {} transferring ownership of room: {} to user: {}", currentUserId, roomId, newOwnerUserId);
+
+        // Validate current user is owner
+        validateOwnership(roomId, currentUserId);
+
+        // Validate new owner is a member
+        if (!roomRepository.existsMemberInRoom(roomId, newOwnerUserId)) {
+            throw new IllegalArgumentException("New owner must be a member of the room");
+        }
+
+        // Cannot transfer to self
+        if (currentUserId.equals(newOwnerUserId)) {
+            throw new IllegalArgumentException("Cannot transfer ownership to yourself");
+        }
+
+        // Update current owner to regular member
+        RoomMemberId currentOwnerMemberId = new RoomMemberId(roomId, currentUserId);
+        RoomMember currentOwner = roomMemberRepository.findById(currentOwnerMemberId)
+                .orElseThrow(() -> new IllegalStateException("Current owner membership not found"));
+        currentOwner.setIsOwner(false);
+        roomMemberRepository.save(currentOwner);
+
+        // Update new owner
+        RoomMemberId newOwnerMemberId = new RoomMemberId(roomId, newOwnerUserId);
+        RoomMember newOwner = roomMemberRepository.findById(newOwnerMemberId)
+                .orElseThrow(() -> new IllegalArgumentException("New owner membership not found"));
+        newOwner.setIsOwner(true);
+        roomMemberRepository.save(newOwner);
+
+        // Broadcast ownership transfer event
+        try {
+            var transferEvent = new java.util.HashMap<String, Object>();
+            transferEvent.put("previousOwnerId", currentUserId);
+            transferEvent.put("newOwnerId", newOwnerUserId);
+            transferEvent.put("roomId", roomId);
+            messagingTemplate.convertAndSend("/topic/rooms/" + roomId + "/ownership-transferred", transferEvent);
+        } catch (Exception e) {
+            log.error("Failed to broadcast ownership transfer: {}", e.getMessage(), e);
+        }
     }
 
     // Helper methods
@@ -286,13 +369,13 @@ public class RoomService {
                 .orElseThrow(() -> new RoomNotFoundException(roomId));
     }
 
-    private void validateOwnership(Long roomId, Long userId) {
+    private void validateOwnership(Long roomId, String userId) {
         if (!roomRepository.isOwnerOfRoom(roomId, userId)) {
             throw new UnauthorizedException("User is not the owner of this room");
         }
     }
 
-    private void validateMembership(Long roomId, Long userId) {
+    private void validateMembership(Long roomId, String userId) {
         if (!roomRepository.existsMemberInRoom(roomId, userId)) {
             throw new UnauthorizedException("User is not a member of this room");
         }
@@ -302,7 +385,7 @@ public class RoomService {
         return UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 
-    private RoomResponse toRoomResponse(Room room, Long currentUserId) {
+    private RoomResponse toRoomResponse(Room room, String currentUserId) {
         long memberCount = roomMemberRepository.countByRoomId(room.getId());
         boolean isOwner = roomRepository.isOwnerOfRoom(room.getId(), currentUserId);
         boolean isMember = roomRepository.existsMemberInRoom(room.getId(), currentUserId);
@@ -313,7 +396,7 @@ public class RoomService {
                 .id(channel.getId())
                 .name(channel.getName())
                 .build())
-                .collect(java.util.stream.Collectors.toList());
+                .toList();
 
         return RoomResponse.builder()
                 .id(room.getId())
@@ -344,15 +427,35 @@ public class RoomService {
     }
 
     private MemberResponse toMemberResponse(RoomMember member) {
-        // TODO: Fetch user details from User Service via FeignClient
+        UserClient.UserInfo userInfo = userClient.getBasicById(member.getId().getUserId());
         return MemberResponse.builder()
                 .userId(member.getId().getUserId())
-                .username("user" + member.getId().getUserId()) // Placeholder
-                .fullName("User " + member.getId().getUserId()) // Placeholder
-                .avatarUrl(null)
+                .username(userInfo.getUsername())
+                .fullName(userInfo.getFullName())
+                .avatarUrl(userInfo.getAvatarUrl())
                 .isOwner(member.getIsOwner())
                 .joinedAt(member.getJoinedAt())
                 .build();
+    }
+    private MemberResponse toMemberResponse(RoomMember member, Map<String, UserClient.UserInfo> userInfoMap) {
+        UserClient.UserInfo userInfo = userInfoMap.get(member.getId().getUserId());
+        return MemberResponse.builder()
+                .userId(member.getId().getUserId())
+                .username(userInfo.getUsername())
+                .fullName(userInfo.getFullName())
+                .avatarUrl(userInfo.getAvatarUrl())
+                .isOwner(member.getIsOwner())
+                .joinedAt(member.getJoinedAt())
+                .build();
+    }
+    private List<MemberResponse> toMemberResponseList(List<RoomMember> roomMembers){
+        List<String> userIds= roomMembers.stream().map(RoomMember::getUserId).toList();
+        List<UserClient.UserInfo> userInfos = userClient.getBasicBulkByIds(new KeycloakUserIdList(userIds));
+        Map<String, UserClient.UserInfo> userInfoMap = userInfos.stream()
+                .collect(Collectors.toMap(UserClient.UserInfo::getId, Function.identity()));
+        return roomMembers.stream()
+                .map(roomMember -> toMemberResponse(roomMember, userInfoMap))
+                .collect(Collectors.toList());
     }
 
     // ========== DIRECT MESSAGE METHODS ==========
@@ -366,8 +469,8 @@ public class RoomService {
      * no channel concept
      */
     @Transactional
-    public RoomResponse createOrGetDirectMessage(CreateDirectMessageRequest request, Long currentUserId) {
-        Long recipientId = request.getRecipientUserId();
+    public RoomResponse createOrGetDirectMessage(CreateDirectMessageRequest request, String currentUserId) {
+        String recipientId = request.getRecipientUserId();
 
         log.info("Creating/Getting DM between user {} and user {}", currentUserId, recipientId);
 
@@ -427,12 +530,12 @@ public class RoomService {
      * Get all DM rooms for current user
      */
     @Transactional(readOnly = true)
-    public List<RoomSummary> getUserDirectMessages(Long userId) {
+    public List<RoomSummary> getUserDirectMessages(String userId) {
         log.info("Getting DMs for user: {}", userId);
 
         return roomRepository.findRoomsByUserId(userId).stream()
                 .filter(room -> room.getRoomType() == RoomType.DIRECT_MESSAGE.toString())
                 .map(this::toRoomSummary)
-                .collect(Collectors.toList());
+                .toList();
     }
 }

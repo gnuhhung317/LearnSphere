@@ -21,4 +21,11 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     
     @Query("SELECT COUNT(m) FROM Message m WHERE m.channel.id = :channelId AND m.isPinned = true")
     long countPinnedMessagesByChannelId(@Param("channelId") Long channelId);
+    
+    // Thread/Reply support
+    @Query("SELECT m FROM Message m WHERE m.parentMessageId = :parentMessageId AND m.isDeleted = false ORDER BY m.createdAt ASC")
+    List<Message> findRepliesByParentMessageId(@Param("parentMessageId") Long parentMessageId);
+    
+    @Query("SELECT COUNT(m) FROM Message m WHERE m.parentMessageId = :parentMessageId AND m.isDeleted = false")
+    long countRepliesByParentMessageId(@Param("parentMessageId") Long parentMessageId);
 }

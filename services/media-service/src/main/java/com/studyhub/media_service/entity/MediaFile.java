@@ -41,6 +41,9 @@ public class MediaFile {
 
     @Column(name = "uploaded_by")
     private String uploadedBy;
+    
+    @Column(name = "room_id")
+    private Long roomId;
 
     @CreationTimestamp
     @Column(name = "uploaded_at", nullable = false, updatable = false)

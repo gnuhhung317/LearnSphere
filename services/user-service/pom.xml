@@ -95,6 +95,10 @@
 		</dependency><!-- https://mvnrepository.com/artifact/org.springframework.cloud/spring-cloud-starter-netflix-eureka-client -->
 
 		<dependency>
+			<groupId>org.springframework.kafka</groupId>
+			<artifactId>spring-kafka</artifactId>
+		</dependency>
+		<dependency>
 			<groupId>com.duchung.vn</groupId>
 			<artifactId>common</artifactId>
 			<version>1.0.0-SNAPSHOT</version>

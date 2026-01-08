@@ -14,7 +14,7 @@ import java.util.Optional;
 public interface RoomRepository extends JpaRepository<Room, Long> {
 
     @Query("SELECT r FROM Room r JOIN r.members m WHERE m.userId = :userId")
-    List<Room> findRoomsByUserId(@Param("userId") Long userId);
+    List<Room> findRoomsByUserId(@Param("userId") String userId);
 
     @Query("SELECT r FROM Room r WHERE r.isPublic = true")
     List<Room> findPublicRooms();
@@ -22,10 +22,10 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
     Optional<Room> findByInviteCode(String inviteCode);
 
     @Query("SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END FROM RoomMember m WHERE m.room.id = :roomId AND m.userId = :userId")
-    boolean existsMemberInRoom(@Param("roomId") Long roomId, @Param("userId") Long userId);
+    boolean existsMemberInRoom(@Param("roomId") Long roomId, @Param("userId") String userId);
 
     @Query("SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END FROM RoomMember m WHERE m.room.id = :roomId AND m.userId = :userId AND m.isOwner = true")
-    boolean isOwnerOfRoom(@Param("roomId") Long roomId, @Param("userId") Long userId);
+    boolean isOwnerOfRoom(@Param("roomId") Long roomId, @Param("userId") String userId);
 
     /**
      * Find existing DM room between two users DM rooms always have exactly 2
@@ -38,7 +38,7 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
             + "AND EXISTS (SELECT 1 FROM RoomMember m2 WHERE m2.room.id = r.id AND m2.userId = :userId2)")
     Optional<Room> findDirectMessageRoom(
             @Param("roomType") RoomType roomType,
-            @Param("userId1") Long userId1,
-            @Param("userId2") Long userId2
+            @Param("userId1") String userId1,
+            @Param("userId2") String userId2
     );
 }

@@ -1,21 +1,28 @@
 package com.studyhub.chat_service.client;
 
+import com.studyhub.common.dto.KeycloakUserIdList;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 
-@FeignClient(name = "user-service", url = "${user-service.url:http://localhost:8081}")
+import java.util.List;
+
+@FeignClient(name = "user-service",configuration = AuthRequestInterceptor.class)
 public interface UserClient {
 
     @GetMapping("/api/v1/users/{userId}")
-    UserInfo getUserById(@PathVariable("userId") Long userId);
+    UserInfo getUserById(@PathVariable("userId") String userId);
 
-    @GetMapping("/api/v1/users/keycloak/{keycloakId}")
-    UserInfo getUserByKeycloakId(@PathVariable("keycloakId") String keycloakId);
+    @GetMapping("/api/v1/users/basic/{keycloakId}")
+    UserInfo getBasicById(@PathVariable("keycloakId") String keycloakId);
+
+    @GetMapping("/api/v1/users/basic/bulk")
+    List<UserInfo> getBasicBulkByIds(@RequestBody KeycloakUserIdList keycloakIds);
 
     class UserInfo {
 
-        private Long id;
+        private String id;
         private String username;
         private String fullName;
         private String avatarUrl;
@@ -23,18 +30,18 @@ public interface UserClient {
         public UserInfo() {
         }
 
-        public UserInfo(Long id, String username, String fullName, String avatarUrl) {
+        public UserInfo(String id, String username, String fullName, String avatarUrl) {
             this.id = id;
             this.username = username;
             this.fullName = fullName;
             this.avatarUrl = avatarUrl;
         }
 
-        public Long getId() {
+        public String getId() {
             return id;
         }
 
-        public void setId(Long id) {
+        public void setId(String id) {
             this.id = id;
         }
 

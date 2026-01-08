@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Data
@@ -17,14 +17,14 @@ public class RoomResponse {
     private Long id;
     private String name;
     private String description;
-    private Long creatorId;
+    private String creatorId;
     private Boolean isPublic;
     private String inviteCode;
     private Integer memberCount;
     private Boolean isOwner;
     private Boolean isMember;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private Instant createdAt;
+    private Instant updatedAt;
     private List<ChannelInfo> channels;
 
     @Data

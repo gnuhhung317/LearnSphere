@@ -30,7 +30,9 @@ public class KeycloakServiceImpl implements KeycloakService {
 
     private final Keycloak keycloak;
     private final KeycloakClient keycloakClient;
-    private String keycloakRealm = "studyhub";
+
+    @Value("${keycloak.realm}")
+    private String keycloakRealm;
 
     @Override
     public CreateUserRequest createUser(RegisterRequest request) {

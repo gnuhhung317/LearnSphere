@@ -4,6 +4,7 @@ import com.studyhub.chat_service.dto.request.CreateDirectMessageRequest;
 import com.studyhub.chat_service.dto.request.CreateRoomRequest;
 import com.studyhub.chat_service.dto.request.InviteMemberRequest;
 import com.studyhub.chat_service.dto.request.JoinRoomRequest;
+import com.studyhub.chat_service.dto.request.TransferOwnershipRequest;
 import com.studyhub.chat_service.dto.request.UpdateRoomRequest;
 import com.studyhub.chat_service.dto.response.MemberResponse;
 import com.studyhub.chat_service.dto.response.RoomResponse;
@@ -20,7 +21,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/rooms")
@@ -32,7 +32,7 @@ public class RoomController {
     @PostMapping
     public ResponseEntity<ApiResponse<RoomResponse>> createRoom(
             @Valid @RequestBody CreateRoomRequest request) {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("POST /api/v1/rooms - Creating room: {} by user: {}", request.getName(), userId);
 
         RoomResponse response = roomService.createRoom(request, userId);
@@ -45,7 +45,7 @@ public class RoomController {
     public ResponseEntity<ApiResponse<RoomResponse>> updateRoom(
             @PathVariable Long roomId,
             @Valid @RequestBody UpdateRoomRequest request) {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("PUT /api/v1/rooms/{} - Updating room by user: {}", roomId, userId);
 
         RoomResponse response = roomService.updateRoom(roomId, request, userId);
@@ -54,7 +54,7 @@ public class RoomController {
 
     @DeleteMapping("/{roomId}")
     public ResponseEntity<ApiResponse<Void>> deleteRoom(@PathVariable Long roomId) {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("DELETE /api/v1/rooms/{} - Deleting room by user: {}", roomId, userId);
 
         roomService.deleteRoom(roomId, userId);
@@ -63,7 +63,7 @@ public class RoomController {
 
     @GetMapping("/{roomId}")
     public ResponseEntity<ApiResponse<RoomResponse>> getRoomById(@PathVariable Long roomId) {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("GET /api/v1/rooms/{} - Getting room details for user: {}", roomId, userId);
 
         RoomResponse response = roomService.getRoomById(roomId, userId);
@@ -72,7 +72,7 @@ public class RoomController {
 
     @GetMapping("/my-rooms")
     public ResponseEntity<ApiResponse<List<RoomSummary>>> getUserRooms() {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("GET /api/v1/rooms/my-rooms - Getting rooms for user: {}", userId);
 
         List<RoomSummary> response = roomService.getUserRooms(userId);
@@ -91,7 +91,7 @@ public class RoomController {
     public ResponseEntity<ApiResponse<RoomResponse>> joinRoom(
             @PathVariable Long roomId,
             @Valid @RequestBody JoinRoomRequest request) {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("POST /api/v1/rooms/{}/join - User {} joining room", roomId, userId);
 
         RoomResponse response = roomService.joinRoom(roomId, request, userId);
@@ -100,7 +100,7 @@ public class RoomController {
 
     @PostMapping("/{roomId}/leave")
     public ResponseEntity<ApiResponse<Void>> leaveRoom(@PathVariable Long roomId) {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("POST /api/v1/rooms/{}/leave - User {} leaving room", roomId, userId);
 
         roomService.leaveRoom(roomId, userId);
@@ -111,7 +111,7 @@ public class RoomController {
     public ResponseEntity<ApiResponse<Void>> inviteMember(
             @PathVariable Long roomId,
             @Valid @RequestBody InviteMemberRequest request) {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("POST /api/v1/rooms/{}/invite - User {} inviting: {}", roomId, userId, request.getUserId());
 
         roomService.inviteMember(roomId, request, userId);
@@ -121,8 +121,8 @@ public class RoomController {
     @DeleteMapping("/{roomId}/members/{userId}")
     public ResponseEntity<ApiResponse<Void>> removeMember(
             @PathVariable Long roomId,
-            @PathVariable Long userId) {
-        Long currentUserId = JwtUtil.getUserIdFromJwt();
+            @PathVariable String userId) {
+        String currentUserId = JwtUtil.getUserIdFromJwt();
         log.info("DELETE /api/v1/rooms/{}/members/{} - Removing member by user: {}", roomId, userId, currentUserId);
 
         roomService.removeMember(roomId, userId, currentUserId);
@@ -132,11 +132,23 @@ public class RoomController {
     @GetMapping("/{roomId}/members")
     public ResponseEntity<ApiResponse<List<MemberResponse>>> getRoomMembers(
             @PathVariable Long roomId) {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("GET /api/v1/rooms/{}/members - Getting members for user: {}", roomId, userId);
 
-        List<MemberResponse> response = roomService.getRoomMembers(roomId, userId);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        List<MemberResponse> members = roomService.getRoomMembers(roomId, userId);
+        return ResponseEntity.ok(ApiResponse.success(members));
+    }
+
+    @PutMapping("/{roomId}/transfer-ownership")
+    public ResponseEntity<ApiResponse<Void>> transferOwnership(
+            @PathVariable Long roomId,
+            @Valid @RequestBody TransferOwnershipRequest request) {
+        String currentUserId = JwtUtil.getUserIdFromJwt();
+        log.info("PUT /api/v1/rooms/{}/transfer-ownership - User {} transferring ownership to user: {}",
+                roomId, currentUserId, request.getNewOwnerId());
+
+        roomService.transferOwnership(roomId, request.getNewOwnerId(), currentUserId);
+        return ResponseEntity.ok(ApiResponse.success("Ownership transferred successfully", null));
     }
 
     // ========== DIRECT MESSAGE ENDPOINTS ==========
@@ -151,7 +163,7 @@ public class RoomController {
     @PostMapping("/direct-messages")
     public ResponseEntity<ApiResponse<RoomResponse>> createDirectMessage(
             @Valid @RequestBody CreateDirectMessageRequest request) {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("POST /api/v1/rooms/direct-messages - User {} creating DM with: {}",
                 userId, request.getRecipientUserId());
 
@@ -167,7 +179,7 @@ public class RoomController {
      */
     @GetMapping("/direct-messages")
     public ResponseEntity<ApiResponse<List<RoomSummary>>> getUserDirectMessages() {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("GET /api/v1/rooms/direct-messages - Getting DMs for user: {}", userId);
 
         List<RoomSummary> response = roomService.getUserDirectMessages(userId);

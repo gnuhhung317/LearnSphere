@@ -1,5 +1,5 @@
 server:
-  port: 8084
+  port: 8086
 
 spring:
   application:
@@ -13,20 +13,28 @@ spring:
     activate:
       on-profile: dev
   datasource:
-    url: jdbc:h2:mem:aidb
-    driverClassName: org.h2.Driver
-    username: sa
-    password: 
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
+    url: jdbc:postgresql://localhost:5434/ai_service_db
+    username: user
+    password: password
+    driver-class-name: org.postgresql.Driver
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
     show-sql: true
-
+  ai:
+    chat:
+      client:
+        enabled: true
+    google:
+      genai:
+        chat:
+          options:
+            model: gemini-2.5-flash
+            #thinking-level: LOW
+        api-key: AIzaSyD5CVvDDoXWg7eM4TybqRsT-fy650LRMQw
+        embedding:
+          api-key: AIzaSyD5CVvDDoXWg7eM4TybqRsT-fy650LRMQw
 management:
   endpoints:
     web:
@@ -39,5 +47,5 @@ logging:
 
 eureka:
   client:
-    serviceUrl:
+    service-url:
       defaultZone:  http://eureka:eureka@localhost:8761/eureka/

@@ -19,8 +19,8 @@ public class MessageReactionId implements Serializable {
     private Long messageId;
     
     @Column(name = "user_id")
-    private Long userId;
-    
+    private String userId;
+
     @Column(name = "emoji")
     private String emoji;
 }

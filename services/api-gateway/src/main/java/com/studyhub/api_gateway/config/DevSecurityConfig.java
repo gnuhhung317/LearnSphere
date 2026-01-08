@@ -30,7 +30,7 @@ public class DevSecurityConfig {
     @Order(1)
     public SecurityWebFilterChain webSocketSecurityFilterChain(ServerHttpSecurity http) {
         return http
-                .securityMatcher(new PathPatternParserServerWebExchangeMatcher("/api/v1/chat/ws/**"))
+                .securityMatcher(new PathPatternParserServerWebExchangeMatcher("/api/v1/**/ws{suffix:.*}"))
                 .csrf(csrf -> csrf.disable())
                 .cors(withDefaults())
                 .authorizeExchange(exchanges -> exchanges
@@ -58,14 +58,19 @@ public class DevSecurityConfig {
                         "/realms/**",
                         "/admin/**",
                         "/actuator/health",
-                        "/fallback/**"
+                        "/fallback/**",
+                        "/api/v1/realtime/**"
                 ).permitAll()
                 // Protected endpoints (require authentication)
                 .pathMatchers(
                         "/api/v1/users/**",
-                        "/api/v1/chat/v1/**", // Chat REST API requires auth
-                        "/api/v1/media/**"
+                        "/api/v1/chat/v1/**" // Chat REST API requires auth
                 ).authenticated()
+                .pathMatchers(
+                        "/api/v1/media/files/*/download",
+                        "/api/v1/media/variants/*/download"
+                ).permitAll()
+                .pathMatchers("/api/v1/media/**").authenticated()
                 .anyExchange().permitAll()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2

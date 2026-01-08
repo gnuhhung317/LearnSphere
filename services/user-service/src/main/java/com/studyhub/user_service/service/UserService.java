@@ -2,8 +2,10 @@ package com.studyhub.user_service.service;
 
 import com.studyhub.user_service.dto.CreateUserRequest;
 import com.studyhub.user_service.dto.UserResponse;
+import com.studyhub.user_service.dto.UserInfo;
 import com.studyhub.user_service.entity.User;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -21,16 +23,8 @@ public interface UserService {
      */
     User getUserByKeycloakId(String keycloakUserId);
 
-    /**
-     * Get user by internal ID
-     */
-    User getUserById(Long id);
-
-    /**
-     * Get user by email
-     */
-    User getUserByEmail(String email);
-
+    List<UserInfo> getBasicBulk(List<String> keycloakIds);
+    UserInfo getBasic(String keycloakUserId);
     /**
      * Update user preferences (language, theme, notifications, etc.)
      */

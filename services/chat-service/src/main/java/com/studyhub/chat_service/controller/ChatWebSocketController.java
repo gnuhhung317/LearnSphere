@@ -10,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -53,13 +52,13 @@ public class ChatWebSocketController {
         // Extract JWT from Principal (set by WebSocketAuthInterceptor)
         UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) principal;
         Jwt jwt = (Jwt) auth.getPrincipal();
-        Long userId = JwtUtil.getUserIdFromJwt(jwt);
+        String userId = JwtUtil.getUserIdFromJwt(jwt);
         
         log.info("WebSocket message received for channel: {} in room: {} from user: {}", channelId, roomId, userId);
 
         try {
-            // Save message to database
-            MessageResponse message = messageService.sendMessage(roomId, channelId, request, userId);
+            // Save message to database (pass JWT for User Service calls)
+            MessageResponse message = messageService.sendMessage(roomId, channelId, request, userId, jwt);
             log.info("Message saved and broadcasted to /topic/rooms/{}/channels/{}", roomId, channelId);
             // No explicit return: broadcasting is handled in MessageService to avoid double-send
 
@@ -84,7 +83,7 @@ public class ChatWebSocketController {
         // Extract JWT from Principal
         UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) principal;
         Jwt jwt = (Jwt) auth.getPrincipal();
-        Long userId = JwtUtil.getUserIdFromJwt(jwt);
+        String userId = JwtUtil.getUserIdFromJwt(jwt);
 
         log.debug("Typing indicator for channel: {} in room: {} from user: {}", channelId, roomId, userId);
 
@@ -111,7 +110,7 @@ public class ChatWebSocketController {
      * Alternative method: Send message to specific user (private message). Not
      * used in current implementation but useful for notifications.
      */
-    public void sendMessageToUser(Long userId, MessageResponse message) {
+    public void sendMessageToUser(String userId, MessageResponse message) {
         messagingTemplate.convertAndSendToUser(
                 userId.toString(),
                 "/queue/messages",

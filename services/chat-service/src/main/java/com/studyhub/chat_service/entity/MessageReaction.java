@@ -7,7 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "message_reactions")
@@ -16,22 +16,22 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class MessageReaction {
-    
+
     @EmbeddedId
     private MessageReactionId id;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("messageId")
     @JoinColumn(name = "message_id")
     private Message message;
-    
+
     @Column(name = "user_id", insertable = false, updatable = false)
-    private Long userId;
-    
+    private String userId;
+
     @Column(name = "emoji", insertable = false, updatable = false)
     private String emoji;
-    
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 }

@@ -7,6 +7,7 @@ import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Global CORS configuration for API Gateway. Allows local frontend origins
@@ -26,7 +27,7 @@ public class CorsConfig {
                 "http://localhost:5173"
         ));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        config.setAllowedHeaders(Arrays.asList("*"));
+        config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
         config.addExposedHeader("Authorization");
 

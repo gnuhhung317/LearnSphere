@@ -28,7 +28,7 @@ public class JwtUtil {
      * @return userId from JWT claims
      * @throws IllegalStateException if no valid authentication is found
      */
-    public static Long getUserIdFromJwt() {
+    public static String  getUserIdFromJwt() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication == null || !authentication.isAuthenticated()
@@ -49,7 +49,7 @@ public class JwtUtil {
      * @param jwt the JWT token
      * @return userId from JWT claims
      */
-    public static Long getUserIdFromJwt(Jwt jwt) {
+    public static String getUserIdFromJwt(Jwt jwt) {
         if (jwt == null) {
             throw new IllegalArgumentException("JWT token cannot be null");
         }
@@ -59,53 +59,12 @@ public class JwtUtil {
     /**
      * Core logic to extract user ID from JWT token
      */
-    private static Long extractUserIdFromJwt(Jwt jwt) {
+    private static String extractUserIdFromJwt(Jwt jwt) {
 
-        // Extract user_id from JWT claims (custom claim if exists)
-        Long userId = jwt.getClaim("user_id");
-        if (userId != null) {
-            log.debug("Extracted userId from JWT claim: {}", userId);
-            return userId;
-        }
-
-        // Try alternative claim names
-        Integer userIdInt = jwt.getClaim("userId");
-        if (userIdInt != null) {
-            log.debug("Extracted userId from userId claim: {}", userIdInt);
-            return userIdInt.longValue();
-        }
 
         // Subject contains Keycloak UUID - fetch StudyHub userId from user-service
-        String keycloakId = jwt.getSubject();
-        if (keycloakId != null) {
-            try {
-                // Try parse as Long first (for backward compatibility)
-                return Long.parseLong(keycloakId);
-            } catch (NumberFormatException e) {
-                // UUID format - fetch from user-service
-                log.info("Fetching userId for Keycloak UUID: {}", keycloakId);
-                try {
-                    if (userClient == null) {
-                        log.error("UserClient is null - cannot fetch user by Keycloak ID");
-                        throw new IllegalStateException("UserClient not initialized");
-                    }
+        return jwt.getSubject();
 
-                    UserClient.UserInfo userInfo = userClient.getUserByKeycloakId(keycloakId);
-                    if (userInfo != null && userInfo.getId() != null) {
-                        log.info("✅ Mapped Keycloak UUID {} to userId: {}", keycloakId, userInfo.getId());
-                        return userInfo.getId();
-                    } else {
-                        log.error("UserClient returned null or empty UserInfo for Keycloak ID: {}", keycloakId);
-                        throw new IllegalStateException("User not found for Keycloak ID: " + keycloakId);
-                    }
-                } catch (Exception ex) {
-                    log.error("❌ Failed to fetch user by Keycloak ID: {} - Error: {}", keycloakId, ex.getMessage(), ex);
-                    throw new IllegalStateException("Failed to resolve user from Keycloak ID: " + keycloakId + " - " + ex.getMessage());
-                }
-            }
-        }
-
-        throw new IllegalStateException("JWT token does not contain valid user identifier");
     }
 
     /**
@@ -143,5 +102,19 @@ public class JwtUtil {
         }
 
         throw new IllegalStateException("JWT token does not contain username claim");
+    }
+
+    public static String getJwt() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            throw new IllegalStateException("No authenticated user found. JWT authentication is required.");
+        }
+
+        if (!(authentication.getPrincipal() instanceof Jwt jwt)) {
+            throw new IllegalStateException("Authentication principal is not a JWT token");
+        }
+        return jwt.getTokenValue();
     }
 }
