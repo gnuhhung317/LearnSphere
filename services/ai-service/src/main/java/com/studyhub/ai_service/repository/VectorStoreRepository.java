@@ -29,21 +29,62 @@ public class VectorStoreRepository {
                 "room_id bigint, " +
                 "content text, " +
                 "chunk_index integer, " +
-                "created_at timestamp, " +
-                "embedding vector(768))"); // 768 is embedding dimension for text-embedding-004
+                "created_at timestamp)");
+
+        // Ensure embedding column exists
+        jdbcTemplate.execute("ALTER TABLE items ADD COLUMN IF NOT EXISTS embedding vector(768)");
+        // Ensure learning_space_id column exists
+        jdbcTemplate.execute("ALTER TABLE items ADD COLUMN IF NOT EXISTS learning_space_id bigint");
     }
 
     public void save(VectorChunk chunk, List<Double> embedding, Long roomId) {
-        String sql = "INSERT INTO items (file_id, room_id, content, chunk_index, created_at, embedding) VALUES (?, ?, ?, ?, ?, ?)";
+        save(chunk, embedding, roomId, null);
+    }
+
+    public void save(VectorChunk chunk, List<Double> embedding, Long roomId, Long learningSpaceId) {
+        String sql = "INSERT INTO items (file_id, room_id, learning_space_id, content, chunk_index, created_at, embedding) VALUES (?, ?, ?, ?, ?, ?, ?)";
 
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(sql);
             ps.setString(1, chunk.getFileId());
-            ps.setLong(2, roomId);
-            ps.setString(3, chunk.getContent());
-            ps.setInt(4, chunk.getChunkIndex());
-            ps.setTimestamp(5, java.sql.Timestamp.from(java.time.Instant.now()));
-            ps.setObject(6, new PGvector(embedding));
+            if (roomId != null)
+                ps.setLong(2, roomId);
+            else
+                ps.setNull(2, java.sql.Types.BIGINT);
+            if (learningSpaceId != null)
+                ps.setLong(3, learningSpaceId);
+            else
+                ps.setNull(3, java.sql.Types.BIGINT);
+            ps.setString(4, chunk.getContent());
+            ps.setInt(5, chunk.getChunkIndex());
+            ps.setTimestamp(6, java.sql.Timestamp.from(java.time.Instant.now()));
+            ps.setObject(7, new PGvector(embedding));
+            return ps;
+        });
+    }
+
+    public void save(VectorChunk chunk, float[] embedding, Long roomId) {
+        save(chunk, embedding, roomId, null);
+    }
+
+    public void save(VectorChunk chunk, float[] embedding, Long roomId, Long learningSpaceId) {
+        String sql = "INSERT INTO items (file_id, room_id, learning_space_id, content, chunk_index, created_at, embedding) VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(sql);
+            ps.setString(1, chunk.getFileId());
+            if (roomId != null)
+                ps.setLong(2, roomId);
+            else
+                ps.setNull(2, java.sql.Types.BIGINT);
+            if (learningSpaceId != null)
+                ps.setLong(3, learningSpaceId);
+            else
+                ps.setNull(3, java.sql.Types.BIGINT);
+            ps.setString(4, chunk.getContent());
+            ps.setInt(5, chunk.getChunkIndex());
+            ps.setTimestamp(6, java.sql.Timestamp.from(java.time.Instant.now()));
+            ps.setObject(7, new PGvector(embedding));
             return ps;
         });
     }
@@ -60,5 +101,84 @@ public class VectorStoreRepository {
                 .chunkIndex(rs.getInt("chunk_index"))
                 .build(),
                 roomId, new PGvector(embedding), limit);
+    }
+
+    public List<VectorChunk> findSimilarByRoom(Long roomId, float[] embedding, int limit) {
+        String sql = "SELECT file_id, content, chunk_index FROM items " +
+                "WHERE room_id = ? " +
+                "ORDER BY embedding <=> ?::vector " +
+                "LIMIT ?";
+
+        return jdbcTemplate.query(sql, (rs, rowNum) -> VectorChunk.builder()
+                .fileId(rs.getString("file_id"))
+                .content(rs.getString("content"))
+                .chunkIndex(rs.getInt("chunk_index"))
+                .build(),
+                roomId, new PGvector(embedding), limit);
+    }
+
+    public List<VectorChunk> findSimilarByLearningSpace(Long learningSpaceId, float[] embedding, int limit) {
+        String sql = "SELECT file_id, content, chunk_index FROM items " +
+                "WHERE learning_space_id = ? " +
+                "ORDER BY embedding <=> ?::vector " +
+                "LIMIT ?";
+
+        return jdbcTemplate.query(sql, (rs, rowNum) -> VectorChunk.builder()
+                .fileId(rs.getString("file_id"))
+                .content(rs.getString("content"))
+                .chunkIndex(rs.getInt("chunk_index"))
+                .build(),
+                learningSpaceId, new PGvector(embedding), limit);
+    }
+
+    public List<VectorChunk> findByFileIdOrderByChunkIndex(String fileId) {
+        String sql = "SELECT file_id, content, chunk_index FROM items " +
+                "WHERE file_id = ? " +
+                "ORDER BY chunk_index ASC";
+
+        return jdbcTemplate.query(sql, (rs, rowNum) -> VectorChunk.builder()
+                .fileId(rs.getString("file_id"))
+                .content(rs.getString("content"))
+                .chunkIndex(rs.getInt("chunk_index"))
+                .build(),
+                fileId);
+    }
+
+    public List<VectorChunk> findSimilarByFileId(String fileId, float[] embedding, int limit) {
+        String sql = "SELECT file_id, content, chunk_index FROM items " +
+                "WHERE file_id = ? " +
+                "ORDER BY embedding <=> ?::vector " +
+                "LIMIT ?";
+
+        return jdbcTemplate.query(sql, (rs, rowNum) -> VectorChunk.builder()
+                .fileId(rs.getString("file_id"))
+                .content(rs.getString("content"))
+                .chunkIndex(rs.getInt("chunk_index"))
+                .build(),
+                fileId, new PGvector(embedding), limit);
+    }
+
+    public void deleteByFileIdAndLearningSpaceId(String fileId, Long learningSpaceId) {
+        String sql = "DELETE FROM items WHERE file_id = ? AND learning_space_id = ?";
+        jdbcTemplate.update(sql, fileId, learningSpaceId);
+    }
+
+    public void deleteByLearningSpaceId(Long learningSpaceId) {
+        String sql = "DELETE FROM items WHERE learning_space_id = ?";
+        jdbcTemplate.update(sql, learningSpaceId);
+    }
+
+    public List<VectorChunk> findRandomChunksByLearningSpace(Long learningSpaceId, int limit) {
+        String sql = "SELECT file_id, content, chunk_index FROM items " +
+                "WHERE learning_space_id = ? " +
+                "ORDER BY RANDOM() " +
+                "LIMIT ?";
+
+        return jdbcTemplate.query(sql, (rs, rowNum) -> VectorChunk.builder()
+                .fileId(rs.getString("file_id"))
+                .content(rs.getString("content"))
+                .chunkIndex(rs.getInt("chunk_index"))
+                .build(),
+                learningSpaceId, limit);
     }
 }

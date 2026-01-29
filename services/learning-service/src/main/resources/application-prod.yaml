@@ -1,0 +1,32 @@
+server:
+  port: 8089
+
+spring:
+  application:
+    name: learning-service
+  datasource:
+    url: jdbc:postgresql://postgres-learning-db:5432/learning_service_db
+    username: user
+    password: password
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://keycloak:8080/realms/master
+
+  kafka:
+    bootstrap-servers: kafka:9092
+
+eureka:
+  client:
+    enabled: false

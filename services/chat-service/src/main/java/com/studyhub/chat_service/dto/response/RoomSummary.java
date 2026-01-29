@@ -21,4 +21,11 @@ public class RoomSummary {
     private Boolean isMember;
     private Instant lastActivity;
     private Instant createdAt;
+    private Long unreadCount;
+
+    // Direct Message specific fields
+    private String recipientId;
+    private String recipientName;
+    private String recipientAvatar;
+    private Boolean isOnline;
 }

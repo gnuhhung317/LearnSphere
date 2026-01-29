@@ -14,6 +14,7 @@ import com.studyhub.chat_service.entity.Room;
 import com.studyhub.chat_service.entity.RoomMember;
 import com.studyhub.chat_service.entity.RoomMemberId;
 import com.studyhub.chat_service.entity.RoomType;
+import com.studyhub.chat_service.event.RoomDeletedEvent;
 import com.studyhub.chat_service.exception.RoomFullException;
 import com.studyhub.chat_service.exception.RoomNotFoundException;
 import com.studyhub.chat_service.exception.UnauthorizedException;
@@ -40,6 +41,7 @@ public class RoomService {
     private final UserClient userClient;
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
+    private final com.studyhub.chat_service.repository.MessageRepository messageRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final EventPublisherService eventPublisher;
 
@@ -52,7 +54,7 @@ public class RoomService {
                 .description(request.getDescription())
                 .creatorId(currentUserId)
                 .isPublic(request.getIsPublic())
-                .roomType(RoomType.GROUP.toString())
+                .roomType(RoomType.GROUP)
                 .maxMembers(MAX_MEMBERS)
                 .build();
 
@@ -70,7 +72,7 @@ public class RoomService {
                 .build();
         if (!Objects.isNull(savedRoom.getChannels())) {
             savedRoom.getChannels().add(generalChannel);
-        }else {
+        } else {
             List<Channel> channels = new ArrayList<>();
             channels.add(generalChannel);
             savedRoom.setChannels(channels);
@@ -95,10 +97,9 @@ public class RoomService {
                     savedRoom.getName(),
                     savedRoom.getDescription(),
                     currentUserId,
-                    savedRoom.getRoomType(),
+                    savedRoom.getRoomType().name(),
                     savedRoom.getIsPublic(),
-                    savedRoom.getCreatedAt()
-            );
+                    savedRoom.getCreatedAt());
             eventPublisher.publishRoomCreated(event);
         } catch (Exception e) {
             log.error("Failed to publish RoomCreated event: {}", e.getMessage(), e);
@@ -139,7 +140,24 @@ public class RoomService {
         Room room = getRoomOrThrow(roomId);
         validateOwnership(roomId, currentUserId);
 
+        String roomName = room.getName();
+        String creatorId = room.getCreatorId();
+
         roomRepository.delete(room);
+
+        // Publish RoomDeleted event to Kafka
+        try {
+            eventPublisher.publishRoomDeleted(RoomDeletedEvent.from(roomId, roomName, creatorId));
+        } catch (Exception e) {
+            log.error("Failed to publish RoomDeleted event: {}", e.getMessage(), e);
+        }
+
+        // Broadcast deletion to room members via websocket
+        try {
+            messagingTemplate.convertAndSend("/topic/rooms/" + roomId + "/deleted", roomId);
+        } catch (Exception e) {
+            log.error("Failed to broadcast room deletion: {}", e.getMessage(), e);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -159,7 +177,8 @@ public class RoomService {
         log.info("Getting rooms for user: {}", userId);
 
         return roomRepository.findRoomsByUserId(userId).stream()
-                .map(this::toRoomSummary)
+                .filter(room -> room.getRoomType() == RoomType.GROUP)
+                .map(room -> toRoomSummary(room, userId, null))
                 .toList();
     }
 
@@ -168,7 +187,7 @@ public class RoomService {
         log.info("Getting public rooms");
 
         return roomRepository.findPublicRooms().stream()
-                .map(this::toRoomSummary)
+                .map(room -> toRoomSummary(room, null, null))
                 .toList();
     }
 
@@ -209,11 +228,11 @@ public class RoomService {
         try {
             var event = com.studyhub.chat_service.event.UserJoinedRoomEvent.from(
                     roomId,
+                    room.getName(),
                     currentUserId,
                     "user_" + currentUserId, // TODO: Get actual username from UserClient
                     "MEMBER",
-                    member.getJoinedAt()
-            );
+                    member.getJoinedAt());
             eventPublisher.publishUserJoinedRoom(event);
         } catch (Exception e) {
             log.error("Failed to publish UserJoinedRoom event: {}", e.getMessage(), e);
@@ -391,11 +410,13 @@ public class RoomService {
         boolean isMember = roomRepository.existsMemberInRoom(room.getId(), currentUserId);
 
         // Map channels
-        List<RoomResponse.ChannelInfo> channels = room.getChannels().stream()
+        List<RoomResponse.ChannelInfo> channels = Optional.ofNullable(room.getChannels())
+                .orElse(Collections.emptyList())
+                .stream()
                 .map(channel -> RoomResponse.ChannelInfo.builder()
-                .id(channel.getId())
-                .name(channel.getName())
-                .build())
+                        .id(channel.getId())
+                        .name(channel.getName())
+                        .build())
                 .toList();
 
         return RoomResponse.builder()
@@ -415,15 +436,7 @@ public class RoomService {
     }
 
     private RoomSummary toRoomSummary(Room room) {
-        long memberCount = roomMemberRepository.countByRoomId(room.getId());
-
-        return RoomSummary.builder()
-                .id(room.getId())
-                .name(room.getName())
-                .memberCount((int) memberCount)
-                .createdAt(room.getCreatedAt())
-                .lastActivity(room.getUpdatedAt())
-                .build();
+        return toRoomSummary(room, null, null);
     }
 
     private MemberResponse toMemberResponse(RoomMember member) {
@@ -437,6 +450,7 @@ public class RoomService {
                 .joinedAt(member.getJoinedAt())
                 .build();
     }
+
     private MemberResponse toMemberResponse(RoomMember member, Map<String, UserClient.UserInfo> userInfoMap) {
         UserClient.UserInfo userInfo = userInfoMap.get(member.getId().getUserId());
         return MemberResponse.builder()
@@ -448,8 +462,9 @@ public class RoomService {
                 .joinedAt(member.getJoinedAt())
                 .build();
     }
-    private List<MemberResponse> toMemberResponseList(List<RoomMember> roomMembers){
-        List<String> userIds= roomMembers.stream().map(RoomMember::getUserId).toList();
+
+    private List<MemberResponse> toMemberResponseList(List<RoomMember> roomMembers) {
+        List<String> userIds = roomMembers.stream().map(RoomMember::getUserId).toList();
         List<UserClient.UserInfo> userInfos = userClient.getBasicBulkByIds(new KeycloakUserIdList(userIds));
         Map<String, UserClient.UserInfo> userInfoMap = userInfos.stream()
                 .collect(Collectors.toMap(UserClient.UserInfo::getId, Function.identity()));
@@ -483,8 +498,7 @@ public class RoomService {
         Optional<Room> existingDM = roomRepository.findDirectMessageRoom(
                 RoomType.DIRECT_MESSAGE,
                 currentUserId,
-                recipientId
-        );
+                recipientId);
 
         if (existingDM.isPresent()) {
             log.info("DM room already exists: {}", existingDM.get().getId());
@@ -492,15 +506,21 @@ public class RoomService {
         }
 
         // Create new DM room
-        // TODO: Fetch recipient user info from User Service to generate room name
-        String dmName = "DM: " + currentUserId + " - " + recipientId;
+        String dmName;
+        try {
+            UserClient.UserInfo recipientInfo = userClient.getBasicById(recipientId);
+            dmName = "DM: " + recipientInfo.getFullName();
+        } catch (Exception e) {
+            log.warn("Failed to fetch recipient info for DM naming, using fallback");
+            dmName = "DM: " + currentUserId + " - " + recipientId;
+        }
 
         Room dmRoom = Room.builder()
                 .name(dmName)
                 .description("Direct message conversation")
                 .creatorId(currentUserId)
                 .isPublic(false)
-                .roomType(RoomType.DIRECT_MESSAGE.toString())
+                .roomType(RoomType.DIRECT_MESSAGE)
                 .maxMembers(2)
                 .inviteCode(null) // No invite code for DMs
                 .build();
@@ -522,7 +542,19 @@ public class RoomService {
 
         roomMemberRepository.saveAll(List.of(member1, member2));
 
-        log.info("Created new DM room: {}", savedRoom.getId());
+        // Create default "General" channel for DMs too so they can have messages
+        Channel generalChannel = Channel.builder()
+                .name("General")
+                .room(savedRoom)
+                .build();
+
+        // Initialize channels list if needed
+        List<Channel> channels = new ArrayList<>();
+        channels.add(generalChannel);
+        savedRoom.setChannels(channels);
+        roomRepository.save(savedRoom);
+
+        log.info("Created new DM room: {} with default channel", savedRoom.getId());
         return toRoomResponse(savedRoom, currentUserId);
     }
 
@@ -533,9 +565,124 @@ public class RoomService {
     public List<RoomSummary> getUserDirectMessages(String userId) {
         log.info("Getting DMs for user: {}", userId);
 
-        return roomRepository.findRoomsByUserId(userId).stream()
-                .filter(room -> room.getRoomType() == RoomType.DIRECT_MESSAGE.toString())
-                .map(this::toRoomSummary)
+        List<Room> dmRooms = roomRepository.findRoomsByUserId(userId).stream()
+                .filter(room -> room.getRoomType() == RoomType.DIRECT_MESSAGE)
                 .toList();
+
+        if (dmRooms.isEmpty()) {
+            return List.of();
+        }
+
+        // Collect all distinct recipient IDs
+        Set<String> recipientIds = new HashSet<>();
+        for (Room room : dmRooms) {
+            List<RoomMember> members = roomMemberRepository.findByRoomId(room.getId());
+            members.stream()
+                    .filter(m -> !m.getId().getUserId().equals(userId))
+                    .map(m -> m.getId().getUserId())
+                    .findFirst()
+                    .ifPresent(recipientIds::add);
+        }
+
+        // Bulk fetch recipient info
+        Map<String, UserClient.UserInfo> userInfoMap = new HashMap<>();
+        try {
+            if (!recipientIds.isEmpty()) {
+                List<UserClient.UserInfo> userInfos = userClient
+                        .getBasicBulkByIds(new KeycloakUserIdList(new ArrayList<>(recipientIds)));
+                userInfoMap = userInfos.stream()
+                        .collect(Collectors.toMap(UserClient.UserInfo::getId, Function.identity()));
+            }
+        } catch (Exception e) {
+            log.warn("Failed to bulk fetch recipient info for DMs: {}", e.getMessage());
+        }
+
+        final Map<String, UserClient.UserInfo> finalUserInfoMap = userInfoMap;
+        return dmRooms.stream()
+                .map(room -> toRoomSummary(room, userId, finalUserInfoMap))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<RoomSummary> searchRooms(String query, String userId) {
+        return roomRepository.searchRooms(query, userId).stream()
+                .map(room -> toRoomSummary(room, userId, null))
+                .toList();
+    }
+
+    @Transactional
+    public void markRoomAsRead(Long roomId, String userId) {
+        RoomMemberId memberId = new RoomMemberId(roomId, userId);
+        RoomMember member = roomMemberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("User is not a member of this room"));
+
+        member.setLastRead(java.time.Instant.now());
+        roomMemberRepository.save(member);
+    }
+
+    private RoomSummary toRoomSummary(Room room, String userId, Map<String, UserClient.UserInfo> userInfoMap) {
+        long memberCount = roomMemberRepository.countByRoomId(room.getId());
+        long unreadCount = 0;
+
+        String recipientId = null;
+        String recipientName = null;
+        String recipientAvatar = null;
+        Boolean isOnline = false;
+
+        if (userId != null) {
+            Optional<RoomMember> member = roomMemberRepository.findById(new RoomMemberId(room.getId(), userId));
+            if (member.isPresent()) {
+                java.time.Instant lastRead = member.get().getLastRead();
+                java.time.Instant since = lastRead != null ? lastRead : member.get().getJoinedAt();
+                unreadCount = messageRepository.countByChannel_Room_IdAndCreatedAtAfter(room.getId(), since);
+            }
+
+            // Populate recipient info for Direct Messages
+            if (room.getRoomType() == RoomType.DIRECT_MESSAGE) {
+                // Explicitly fetch members to avoid lazy loading issues
+                List<RoomMember> members = roomMemberRepository.findByRoomId(room.getId());
+
+                // Find the other member
+                Optional<RoomMember> otherMember = members.stream()
+                        .filter(m -> !m.getId().getUserId().equals(userId))
+                        .findFirst();
+
+                if (otherMember.isPresent()) {
+                    String otherUserId = otherMember.get().getId().getUserId();
+                    try {
+                        UserClient.UserInfo userInfo = (userInfoMap != null) ? userInfoMap.get(otherUserId) : null;
+
+                        if (userInfo == null) {
+                            // Single fetch fallback if not in map
+                            userInfo = userClient.getBasicById(otherUserId);
+                        }
+
+                        if (userInfo != null) {
+                            recipientId = userInfo.getId();
+                            recipientName = userInfo.getFullName();
+                            recipientAvatar = userInfo.getAvatarUrl();
+                        }
+                        // isOnline logic would go here if available (e.g. from presence service)
+                    } catch (Exception e) {
+                        log.error("Failed to fetch recipient info for room {}", room.getId(), e);
+                    }
+                } else {
+                    log.warn("No other member found in DM room {} (members found: {})", room.getId(), members.size());
+                }
+            }
+        }
+
+        return RoomSummary.builder()
+                .id(room.getId())
+                .name(room.getName())
+                .memberCount((int) memberCount)
+                .createdAt(room.getCreatedAt())
+                .lastActivity(room.getUpdatedAt())
+                .unreadCount(unreadCount)
+                .recipientId(recipientId)
+                .recipientName(recipientName)
+                .recipientAvatar(recipientAvatar)
+                .isOnline(isOnline)
+                .build();
     }
 }

@@ -12,8 +12,10 @@ spring:
   config:
     activate:
       on-profile: dev
+  kafka:
+    bootstrap-servers: localhost:9094
   datasource:
-    url: jdbc:postgresql://localhost:5434/ai_service_db
+    url: jdbc:postgresql://localhost:5432/ai_service_db
     username: user
     password: password
     driver-class-name: org.postgresql.Driver
@@ -30,11 +32,13 @@ spring:
       genai:
         chat:
           options:
-            model: gemini-2.5-flash
+            model: gemini-2.5-flash-lite
             #thinking-level: LOW
-        api-key: AIzaSyD5CVvDDoXWg7eM4TybqRsT-fy650LRMQw
+        api-key: AIzaSyCYM42dx8TR_1Nook5G96Ra3P70xSs3ToQ
         embedding:
-          api-key: AIzaSyD5CVvDDoXWg7eM4TybqRsT-fy650LRMQw
+          api-key: AIzaSyCYM42dx8TR_1Nook5G96Ra3P70xSs3ToQ
+        # project-id: studyhub-ai
+        # location: us-central1
 management:
   endpoints:
     web:

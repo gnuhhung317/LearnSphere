@@ -12,6 +12,7 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.util.matcher.PathPatternParserServerWebExchangeMatcher;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter;
+import org.springframework.security.web.server.util.matcher.OrServerWebExchangeMatcher;
 
 /**
  * Security configuration for API Gateway - Development profile 
@@ -30,8 +31,11 @@ public class DevSecurityConfig {
     @Order(1)
     public SecurityWebFilterChain webSocketSecurityFilterChain(ServerHttpSecurity http) {
         return http
-                .securityMatcher(new PathPatternParserServerWebExchangeMatcher("/api/v1/**/ws{suffix:.*}"))
-                .csrf(csrf -> csrf.disable())
+                .securityMatcher(new OrServerWebExchangeMatcher(
+                    new PathPatternParserServerWebExchangeMatcher("/api/v1/realtime/ws/**"),
+                    new PathPatternParserServerWebExchangeMatcher("/api/v1/chat/ws/**")
+                ))
+                .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .cors(withDefaults())
                 .authorizeExchange(exchanges -> exchanges
                     .anyExchange().permitAll()
@@ -47,7 +51,7 @@ public class DevSecurityConfig {
     @Order(2)
     public SecurityWebFilterChain apiSecurityFilterChain(ServerHttpSecurity http) {
         return http
-                .csrf(csrf -> csrf.disable())
+                .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .cors(withDefaults())
                 .authorizeExchange(exchanges -> exchanges
                 // Allow CORS preflight

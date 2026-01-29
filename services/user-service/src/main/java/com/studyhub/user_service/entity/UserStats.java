@@ -37,6 +37,9 @@ public class UserStats {
     @Column(name = "level", nullable = false)
     private Integer level = 1;
 
+    @Column(name = "xp", nullable = false)
+    private Long xp = 0L;
+
     @Column(name = "courses_completed", nullable = false)
     private Integer coursesCompleted = 0;
 

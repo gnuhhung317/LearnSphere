@@ -25,6 +25,20 @@ public class MessageController {
 
     private final MessageService messageService;
 
+    @PostMapping
+    public ResponseEntity<ApiResponse<MessageResponse>> sendMessage(
+            @Valid @RequestBody com.studyhub.chat_service.dto.request.SendMessageRestRequest request,
+            org.springframework.security.core.Authentication authentication) {
+        String userId = JwtUtil.getUserIdFromJwt();
+        org.springframework.security.oauth2.jwt.Jwt jwt = (org.springframework.security.oauth2.jwt.Jwt) authentication
+                .getPrincipal();
+
+        log.info("POST /api/v1/messages - Sending message to room: {} by user: {}", request.getRoomId(), userId);
+
+        MessageResponse response = messageService.sendMessageRest(request, userId, jwt);
+        return ResponseEntity.ok(ApiResponse.success("Message sent successfully", response));
+    }
+
     @GetMapping("/channels/{channelId}")
     public ResponseEntity<ApiResponse<Page<MessageResponse>>> getMessageHistory(
             @PathVariable Long channelId,
@@ -35,6 +49,19 @@ public class MessageController {
 
         Pageable pageable = PageRequest.of(page, size);
         Page<MessageResponse> response = messageService.getMessageHistoryByChannel(channelId, userId, pageable);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/rooms/{roomId}")
+    public ResponseEntity<ApiResponse<Page<MessageResponse>>> getMessagesByRoom(
+            @PathVariable Long roomId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        String userId = JwtUtil.getUserIdFromJwt();
+        log.info("GET /api/v1/messages/rooms/{} - Getting history for user: {}", roomId, userId);
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<MessageResponse> response = messageService.getMessageHistory(roomId, userId, pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

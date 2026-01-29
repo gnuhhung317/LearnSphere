@@ -56,8 +56,11 @@ public class MediaFile {
     @Column(name = "thumbnail_id")
     private String thumbnailId;
 
+    @Column(name = "parent_id")
+    private String parentId;
+
     public enum FileType {
-        IMAGE, DOCUMENT, VIDEO, AUDIO, OTHER
+        IMAGE, DOCUMENT, VIDEO, AUDIO, OTHER, FOLDER
     }
 
     public enum FileStatus {

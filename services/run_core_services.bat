@@ -19,6 +19,24 @@ start "User Service" cmd /k "cd user-service && mvn spring-boot:run"
 echo Starting Media Service...
 start "Media Service" cmd /k "cd media-service && mvn spring-boot:run"
 
+echo Starting Chat Service...
+start "Chat Service" cmd /k "cd chat-service && mvn spring-boot:run"
+
+echo Starting Realtime Service...
+start "Realtime Service" cmd /k "cd realtime-service && mvn spring-boot:run"
+
+echo Starting Learning Service...
+start "Learning Service" cmd /k "cd learning-service && mvn spring-boot:run"
+
+echo Starting Search Service...
+start "Search Service" cmd /k "cd search-service && mvn spring-boot:run"
+
+echo Starting AI Service...
+start "AI Service" cmd /k "cd ai-service && mvn spring-boot:run"
+
+echo Starting LiveKit Server...
+start "LiveKit Server" cmd /k "cd ../ops && .\livekit-server.exe --config livekit.yaml --dev"
+
 echoAll core services start command handlers initiated.
 echo You can now run other services (Chat, AI, User, etc.) in your IDE for debugging.
 pause

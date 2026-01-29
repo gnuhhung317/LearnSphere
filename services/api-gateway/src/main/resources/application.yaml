@@ -197,6 +197,30 @@ spring:
             response-timeout: 60000
             connect-timeout: 5000
 
+        # Learning Service Routes
+        - id: learning-service
+          uri: http://localhost:8089
+          predicates:
+            - Path=/api/v1/learning-spaces/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: learning-service
+                fallbackUri: forward:/fallback/learning
+                statusCodes:
+                  - 500
+                  - 502
+                  - 503
+                  - 504
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                redis-rate-limiter.requestedTokens: 1
+          metadata:
+            response-timeout: 10000
+            connect-timeout: 3000
+
         # Search Service Routes
         - id: search-service
           uri: http://localhost:8087
@@ -232,22 +256,19 @@ spring:
 
       # Global CORS configuration
       # Default filters applied to all routes
-      default-filters:
-        - name: SecureHeaders
-        - name: AddRequestHeader
-          args:
-            name: X-Gateway-Version
-            value: "1.0.0"
-        - name: AddRequestHeader
-          args:
-            name: X-Request-ID
-            value: "req-#{T(System).currentTimeMillis()}"
-        - name: RemoveRequestHeader
-          args:
-            name: Cookie
-        - name: RemoveResponseHeader
-          args:
-            name: Server
+    default-filters:
+      - RequestId
+      - name: SecureHeaders
+      - name: AddRequestHeader
+        args:
+          name: X-Gateway-Version
+          value: "1.0.0"
+      - name: RemoveRequestHeader
+        args:
+          name: Cookie
+      - name: RemoveResponseHeader
+        args:
+          name: Server
 #      server:
 #        webflux:
 #          globalcors:
@@ -278,7 +299,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://keycloak.studyhub.local/realms/studyhub
+          issuer-uri: http://keycloak.studyhub.local/realms/master
 
 # Redis Configuration for Rate Limiting
   redis:
@@ -366,6 +387,16 @@ resilience4j:
         slow-call-rate-threshold: 55
         slow-call-duration-threshold: 3s
         automatic-transition-from-open-to-half-open-enabled: true
+      learning-service:
+        register-health-indicator: true
+        sliding-window-size: 15
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 5s
+        automatic-transition-from-open-to-half-open-enabled: true
 
   # Retry Configuration
   retry:
@@ -419,6 +450,13 @@ resilience4j:
         retry-exceptions:
           - java.net.ConnectException
           - java.net.SocketTimeoutException
+      learning-service:
+        max-attempts: 3
+        wait-duration: 200ms
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
 
   # Time Limiter Configuration
   timelimiter:
@@ -443,6 +481,9 @@ resilience4j:
         cancel-running-future: true
       search-service:
         timeout-duration: 8s
+        cancel-running-future: true
+      learning-service:
+        timeout-duration: 10s
         cancel-running-future: true
 
 # Logging Configuration
@@ -517,14 +558,14 @@ spring:
   # Development security - more permissive CORS
   cloud:
     gateway:
-      globalcors:
-        cors-configurations:
-          '[/**]':
-            allowedOriginPatterns: "*"
-            allowedMethods: "*"
-            allowedHeaders: "*"
-            allowCredentials: true
-            maxAge: 86400
+      # globalcors:
+      #   cors-configurations:
+      #     '[/**]':
+      #       allowedOriginPatterns: "*"
+      #       allowedMethods: "*"
+      #       allowedHeaders: "*"
+      #       allowCredentials: true
+      #       maxAge: 86400
 
 # Development logging
 logging:
@@ -601,6 +642,8 @@ spring:
           uri: http://ai-service:8086
         - id: search-service
           uri: http://search-service:8087
+        - id: learning-service
+          uri: http://learning-service:8089
         - id: keycloak
           uri: http://keycloak:8080
 
@@ -609,8 +652,8 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://keycloak:8080/realms/studyhub}
-          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://keycloak:8080/realms/studyhub/protocol/openid-connect/certs}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://keycloak:8080/realms/master}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://keycloak:8080/realms/master/protocol/openid-connect/certs}
 
 # Production logging
 logging:

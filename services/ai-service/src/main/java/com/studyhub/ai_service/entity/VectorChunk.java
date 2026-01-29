@@ -24,6 +24,12 @@ public class VectorChunk {
     @Column(name = "file_id", nullable = false)
     private String fileId; // Reference to Media Service file ID
 
+    @Column(name = "room_id")
+    private Long roomId;
+
+    @Column(name = "learning_space_id")
+    private Long learningSpaceId;
+
     @Column(columnDefinition = "TEXT")
     private String content;
 
@@ -33,7 +39,7 @@ public class VectorChunk {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;
-    
+
     // We will not map the vector column with JPA directly to avoid complexity
     // We will use JdbcTemplate for inserting/querying the vector column
 }

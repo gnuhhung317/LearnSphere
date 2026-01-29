@@ -10,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -30,15 +29,18 @@ public class EmbeddingQueueService {
     public static class ChunkTask {
         private String fileId;
         private Long roomId;
+        private Long learningSpaceId;
         private String content;
         private int chunkIndex;
         private Runnable onSuccess;
     }
 
-    public void enqueue(String fileId, Long roomId, String content, int index, Runnable onSuccess) {
+    public void enqueue(String fileId, Long roomId, Long learningSpaceId, String content, int index,
+            Runnable onSuccess) {
         queue.offer(ChunkTask.builder()
                 .fileId(fileId)
                 .roomId(roomId)
+                .learningSpaceId(learningSpaceId)
                 .content(content)
                 .chunkIndex(index)
                 .onSuccess(onSuccess)
@@ -65,16 +67,18 @@ public class EmbeddingQueueService {
             log.debug("Embedding chunk {} for file {}", task.getChunkIndex(), task.getFileId());
 
             // 1. Get Embedding
-            List<Double> embedding = embeddingClient.getEmbedding(task.getContent());
+            float[] embedding = embeddingClient.getEmbedding(task.getContent());
 
             // 2. Save to DB
             VectorChunk chunk = VectorChunk.builder()
                     .fileId(task.getFileId())
                     .content(task.getContent())
                     .chunkIndex(task.getChunkIndex())
+                    .roomId(task.getRoomId())
+                    .learningSpaceId(task.getLearningSpaceId())
                     .build();
 
-            vectorStoreRepository.save(chunk, embedding, task.getRoomId());
+            vectorStoreRepository.save(chunk, embedding, task.getRoomId(), task.getLearningSpaceId());
 
             // 3. Callback (e.g. to check if file processing is complete)
             if (task.getOnSuccess() != null) {

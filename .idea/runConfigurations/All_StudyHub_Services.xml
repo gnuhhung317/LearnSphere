@@ -1,0 +1,10 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="All StudyHub Services" type="CompoundRunConfigurationType">
+    <toRun name="AiServiceApplication" type="Application" />
+    <toRun name="ApiGatewayApplication" type="Application" />
+    <toRun name="AuthServiceApplication" type="Application" />
+    <toRun name="ChatServiceApplication" type="Application" />
+    <toRun name="MediaServiceApplication" type="Application" />
+    <method v="2" />
+  </configuration>
+</component>

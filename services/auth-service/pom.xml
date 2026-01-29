@@ -71,7 +71,6 @@
 		<dependency>
 			<groupId>org.springframework.cloud</groupId>
 			<artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
-			<version>4.3.0</version>
 		</dependency>
 
 		<dependency>
@@ -84,6 +83,23 @@
 			<groupId>org.keycloak</groupId>
 			<artifactId>keycloak-admin-client</artifactId>
 			<version>26.0.7</version>
+		</dependency>
+
+		<!-- Feign Form Support -->
+		<dependency>
+			<groupId>io.github.openfeign.form</groupId>
+			<artifactId>feign-form</artifactId>
+			<version>3.8.0</version>
+		</dependency>
+		<dependency>
+			<groupId>io.github.openfeign.form</groupId>
+			<artifactId>feign-form-spring</artifactId>
+			<version>3.8.0</version>
+		</dependency>
+		<!-- Swagger -->
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
 		</dependency>
 	</dependencies>
 

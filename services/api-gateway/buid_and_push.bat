@@ -7,7 +7,7 @@ REM Defaults: registry=gnuhhung317, tag=prod-<git-sha>
 set "REGISTRY=%~1"
 if "%REGISTRY%"=="" set "REGISTRY=gnuhhung317"
 
-set "IMAGE_NAME=studyhub-user-service"
+set "IMAGE_NAME=studyhub-api-gateway"
 set "TAG=%~2"
 
 if "%TAG%"=="" (

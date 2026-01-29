@@ -13,23 +13,26 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class UserJoinedRoomEvent {
-    
+
     private Long roomId;
+    private String roomName;
     private String userId;
     private String username;
     private String role;
     private Instant joinedAt;
     private String eventId;
     private Long timestamp;
-    
+
     public static UserJoinedRoomEvent from(
             Long roomId,
+            String roomName,
             String userId,
             String username,
             String role,
             Instant joinedAt) {
         return UserJoinedRoomEvent.builder()
                 .roomId(roomId)
+                .roomName(roomName)
                 .userId(userId)
                 .username(username)
                 .role(role)

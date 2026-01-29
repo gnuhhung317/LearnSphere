@@ -40,6 +40,32 @@ public class MessageService {
     private final com.studyhub.chat_service.client.AiClient aiClient;
 
     @Transactional
+    public MessageResponse sendMessageRest(com.studyhub.chat_service.dto.request.SendMessageRestRequest request,
+            String senderId, org.springframework.security.oauth2.jwt.Jwt jwt) {
+
+        Long channelId = request.getChannelId();
+        if (channelId == null) {
+            // Find default channel for the room
+            channelId = channelRepository.findByRoomIdOrderByIdAsc(request.getRoomId()).stream()
+                    .filter(c -> "General".equalsIgnoreCase(c.getName()))
+                    .map(Channel::getId)
+                    .findFirst()
+                    .orElseGet(() -> channelRepository.findByRoomIdOrderByIdAsc(request.getRoomId()).stream()
+                            .map(Channel::getId)
+                            .findFirst()
+                            .orElseThrow(() -> new IllegalArgumentException("Room has no channels")));
+        }
+
+        SendMessageRequest msgRequest = SendMessageRequest.builder()
+                .content(request.getContent())
+                .parentMessageId(request.getParentMessageId())
+                .attachments(request.getAttachments())
+                .build();
+
+        return sendMessage(request.getRoomId(), channelId, msgRequest, senderId, jwt);
+    }
+
+    @Transactional
     public MessageResponse sendMessage(Long roomId, Long channelId, SendMessageRequest request, String senderId,
             org.springframework.security.oauth2.jwt.Jwt jwt) {
         log.info("Sending message to channel: {} in room: {} by user: {}", channelId, roomId, senderId);
@@ -411,7 +437,6 @@ public class MessageService {
     }
 
     // --- Bulk Fetching Helpers ---
-
     private Page<MessageResponse> mapMessagesToResponses(Page<Message> messages, String currentUserId) {
         if (messages.isEmpty()) {
             return Page.empty();
@@ -425,12 +450,17 @@ public class MessageService {
         Map<Long, Map<String, Integer>> reactionCountsMap = fetchReactionCounts(messageIds);
         Map<Long, List<String>> userReactionsMap = fetchUserReactions(messageIds, currentUserId);
 
+        // Collect Sender IDs and fetch in batch
+        List<String> senderIds = messages.stream().map(Message::getSenderId).distinct().collect(Collectors.toList());
+        Map<String, UserClient.UserInfo> senderInfoMap = fetchUserInfos(senderIds);
+
         // 3. Map to DTOs
         return messages.map(message -> mapToResponse(
                 message,
                 attachmentsMap.getOrDefault(message.getId(), List.of()),
                 reactionCountsMap.getOrDefault(message.getId(), Map.of()),
-                userReactionsMap.getOrDefault(message.getId(), List.of())));
+                userReactionsMap.getOrDefault(message.getId(), List.of()),
+                senderInfoMap.get(message.getSenderId())));
     }
 
     private List<MessageResponse> mapMessagesToListResponses(List<Message> messages, String currentUserId) {
@@ -444,11 +474,16 @@ public class MessageService {
         Map<Long, Map<String, Integer>> reactionCountsMap = fetchReactionCounts(messageIds);
         Map<Long, List<String>> userReactionsMap = fetchUserReactions(messageIds, currentUserId);
 
+        // Collect Sender IDs and fetch in batch
+        List<String> senderIds = messages.stream().map(Message::getSenderId).distinct().collect(Collectors.toList());
+        Map<String, UserClient.UserInfo> senderInfoMap = fetchUserInfos(senderIds);
+
         return messages.stream().map(message -> mapToResponse(
                 message,
                 attachmentsMap.getOrDefault(message.getId(), List.of()),
                 reactionCountsMap.getOrDefault(message.getId(), Map.of()),
-                userReactionsMap.getOrDefault(message.getId(), List.of()))).collect(Collectors.toList());
+                userReactionsMap.getOrDefault(message.getId(), List.of()),
+                senderInfoMap.get(message.getSenderId()))).collect(Collectors.toList());
     }
 
     private Map<Long, List<MessageResponse.AttachmentInfo>> fetchAttachments(List<Long> messageIds) {
@@ -488,6 +523,21 @@ public class MessageService {
                         Collectors.mapping(r -> r.getId().getEmoji(), Collectors.toList())));
     }
 
+    private Map<String, UserClient.UserInfo> fetchUserInfos(List<String> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Map.of();
+        }
+        try {
+            List<UserClient.UserInfo> userInfos = userClient
+                    .getBasicBulkByIds(new com.studyhub.common.dto.KeycloakUserIdList(userIds));
+            return userInfos.stream()
+                    .collect(Collectors.toMap(UserClient.UserInfo::getId, userInfo -> userInfo, (u1, u2) -> u1));
+        } catch (Exception e) {
+            log.error("Failed to bulk fetch user info: {}", e.getMessage());
+            return Map.of();
+        }
+    }
+
     // Original method repurposed for single message fetching (backward
     // compatibility / single ops)
     private MessageResponse toMessageResponse(Message message, String currentUserId) {
@@ -514,7 +564,7 @@ public class MessageService {
                 .map(r -> r.getId().getEmoji())
                 .collect(Collectors.toList());
 
-        return mapToResponse(message, attachments, reactionCountsMap, userReactions);
+        return mapToResponse(message, attachments, reactionCountsMap, userReactions, null);
     }
 
     // Core mapping logic
@@ -522,26 +572,33 @@ public class MessageService {
             Message message,
             List<MessageResponse.AttachmentInfo> attachments,
             Map<String, Integer> reactionCounts,
-            List<String> userReactions) {
+            List<String> userReactions,
+            UserClient.UserInfo userInfo) {
 
-        // Fetch sender details from User Service (this is still N+1 if not
-        // cached/batched, but acceptable for now per requirements)
-        // Ideally UserClient should support batch fetching users too.
         MessageResponse.SenderInfo senderInfo;
-        try {
-            UserClient.UserInfo userInfo = userClient.getUserById(message.getSenderId());
+        if (userInfo != null) {
             senderInfo = new MessageResponse.SenderInfo(
                     userInfo.getId(),
                     userInfo.getUsername(),
                     userInfo.getFullName(),
                     userInfo.getAvatarUrl());
-        } catch (Exception e) {
-            log.warn("Failed to fetch user info for userId: {}, using placeholder", message.getSenderId());
-            senderInfo = new MessageResponse.SenderInfo(
-                    message.getSenderId(),
-                    "user" + message.getSenderId(),
-                    "User " + message.getSenderId(),
-                    null);
+        } else {
+            // Fallback for single message or if bulk fetch failed
+            try {
+                UserClient.UserInfo singleUserInfo = userClient.getUserById(message.getSenderId());
+                senderInfo = new MessageResponse.SenderInfo(
+                        singleUserInfo.getId(),
+                        singleUserInfo.getUsername(),
+                        singleUserInfo.getFullName(),
+                        singleUserInfo.getAvatarUrl());
+            } catch (Exception e) {
+                log.warn("Failed to fetch user info for userId: {}, using placeholder", message.getSenderId());
+                senderInfo = new MessageResponse.SenderInfo(
+                        message.getSenderId(),
+                        "user" + message.getSenderId(),
+                        "User " + message.getSenderId(),
+                        null);
+            }
         }
 
         return MessageResponse.builder()

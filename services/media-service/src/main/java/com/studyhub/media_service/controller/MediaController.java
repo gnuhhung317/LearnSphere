@@ -97,16 +97,65 @@ public class MediaController {
         }
         return ResponseEntity.ok(new FileStatusResponse(fileId, status));
     }
-    
+
+    @GetMapping("/my-files")
+    public ResponseEntity<List<MediaFile>> getMyFiles(@AuthenticationPrincipal Jwt jwt) {
+        String uploadedBy = jwt != null ? jwt.getClaimAsString("preferred_username") : "anonymous";
+        return ResponseEntity.ok(mediaService.getUserFiles(uploadedBy));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<MediaFile>> searchFiles(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam("q") String query) {
+        String uploadedBy = jwt != null ? jwt.getClaimAsString("preferred_username") : "anonymous";
+        return ResponseEntity.ok(mediaService.searchFiles(query, uploadedBy));
+    }
+
+    @GetMapping("/recent")
+    public ResponseEntity<List<MediaFile>> getRecentFiles(@AuthenticationPrincipal Jwt jwt) {
+        String uploadedBy = jwt != null ? jwt.getClaimAsString("preferred_username") : "anonymous";
+        return ResponseEntity.ok(mediaService.getRecentFiles(uploadedBy));
+    }
+
+    @PostMapping("/folders")
+    public ResponseEntity<MediaFile> createFolder(
+            @Valid @RequestBody CreateFolderRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        String createdBy = jwt != null ? jwt.getClaimAsString("preferred_username") : "anonymous";
+        return ResponseEntity.ok(mediaService.createFolder(request.getName(), request.getParentId(), createdBy));
+    }
+
+    @GetMapping("/folders/{folderId}")
+    public ResponseEntity<List<MediaFile>> getFolderContents(
+            @PathVariable String folderId,
+            @AuthenticationPrincipal Jwt jwt) {
+        String uploadedBy = jwt != null ? jwt.getClaimAsString("preferred_username") : "anonymous";
+        return ResponseEntity.ok(mediaService.getFolderContents(folderId, uploadedBy));
+    }
+
+    @GetMapping("/folders/root/files")
+    public ResponseEntity<List<MediaFile>> getRootFiles(@AuthenticationPrincipal Jwt jwt) {
+        String uploadedBy = jwt != null ? jwt.getClaimAsString("preferred_username") : "anonymous";
+        return ResponseEntity.ok(mediaService.getFolderContents(null, uploadedBy));
+    }
+
+    @GetMapping("/folders/{folderId}/files")
+    public ResponseEntity<List<MediaFile>> getFolderFiles(
+            @PathVariable String folderId,
+            @AuthenticationPrincipal Jwt jwt) {
+        String uploadedBy = jwt != null ? jwt.getClaimAsString("preferred_username") : "anonymous";
+        return ResponseEntity.ok(mediaService.getFolderContents(folderId, uploadedBy));
+    }
+
     /**
-     * Get all files uploaded to a room
-     * GET /api/v1/media/rooms/{roomId}/files
+     * Get all files uploaded to a room GET /api/v1/media/rooms/{roomId}/files
      */
     @GetMapping("/rooms/{roomId}/files")
     public ResponseEntity<List<MediaFile>> getRoomFiles(
             @PathVariable Long roomId,
             @RequestParam(value = "type", required = false) String fileType) {
-        
+
         try {
             List<MediaFile> files;
             if (fileType != null) {
@@ -167,10 +216,8 @@ public class MediaController {
     }
 
     // ==================== Transcoding APIs ====================
-
     /**
-     * API 1: Start transcode job for a video
-     * POST /api/v1/media/transcode
+     * API 1: Start transcode job for a video POST /api/v1/media/transcode
      */
     @PostMapping("/transcode")
     public ResponseEntity<TranscodeResponse> startTranscode(
@@ -195,8 +242,7 @@ public class MediaController {
     }
 
     /**
-     * API 2: Get transcode job status
-     * GET /api/v1/media/transcode/{jobId}
+     * API 2: Get transcode job status GET /api/v1/media/transcode/{jobId}
      */
     @GetMapping("/transcode/{jobId}")
     public ResponseEntity<TranscodeJobStatusResponse> getTranscodeStatus(@PathVariable String jobId) {
@@ -214,8 +260,8 @@ public class MediaController {
     }
 
     /**
-     * API 3: Get all variants for a video file
-     * GET /api/v1/media/files/{fileId}/variants
+     * API 3: Get all variants for a video file GET
+     * /api/v1/media/files/{fileId}/variants
      */
     @GetMapping("/files/{fileId}/variants")
     public ResponseEntity<List<TranscodeResponse.TranscodedVariant>> getVideoVariants(
@@ -232,8 +278,7 @@ public class MediaController {
     }
 
     /**
-     * API 4: Cancel transcode job
-     * DELETE /api/v1/media/transcode/{jobId}
+     * API 4: Cancel transcode job DELETE /api/v1/media/transcode/{jobId}
      */
     @DeleteMapping("/transcode/{jobId}")
     public ResponseEntity<Void> cancelTranscode(@PathVariable String jobId) {
@@ -254,8 +299,8 @@ public class MediaController {
     }
 
     /**
-     * Download specific video variant
-     * GET /api/v1/media/variants/{variantId}/download
+     * Download specific video variant GET
+     * /api/v1/media/variants/{variantId}/download
      */
     @GetMapping("/variants/{variantId}/download")
     public ResponseEntity<InputStreamResource> downloadVariant(@PathVariable String variantId) {

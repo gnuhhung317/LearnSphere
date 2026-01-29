@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: studyhub-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers:
+        - name: api-gateway
+          image: gnuhhung317/studyhub-api-gateway:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: studyhub-config
+            - secretRef:
+                name: studyhub-secrets
+          env:
+            - name: KEYCLOAK_ISSUER_URI
+              value: "http://keycloak:8080/realms/master"
+            - name: REDIS_HOST
+              value: "redis"
+          # readinessProbe:
+          #   httpGet:
+          #     path: /actuator/health/readiness
+          #     port: 8080
+          #   initialDelaySeconds: 30
+          #   periodSeconds: 10
+          # livenessProbe:
+          #   httpGet:
+          #     path: /actuator/health/liveness
+          #     port: 8080
+          #   initialDelaySeconds: 60
+          #   periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  namespace: studyhub-dev
+spec:
+  type: LoadBalancer
+  selector:
+    app: api-gateway
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080

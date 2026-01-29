@@ -35,8 +35,14 @@ public class DevHeaderAuthFilter implements WebFilter {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         String path = exchange.getRequest().getPath().value();
-        // Allow CORS preflight to pass through: do not require Authorization header for OPTIONS
+        // Allow CORS preflight to pass through
         if (exchange.getRequest().getMethod() != null && exchange.getRequest().getMethod().name().equalsIgnoreCase("OPTIONS")) {
+            return chain.filter(exchange);
+        }
+
+        // Allow WebSocket Upgrade requests to pass through (auth handled in STOMP CONNECT)
+        String upgradeHeader = exchange.getRequest().getHeaders().getFirst("Upgrade");
+        if (upgradeHeader != null && "websocket".equalsIgnoreCase(upgradeHeader)) {
             return chain.filter(exchange);
         }
 

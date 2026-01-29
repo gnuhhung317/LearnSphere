@@ -57,12 +57,7 @@
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
 		</dependency>
-		<!-- H2 for development -->
-		<dependency>
-			<groupId>com.h2database</groupId>
-			<artifactId>h2</artifactId>
-			<scope>runtime</scope>
-		</dependency>
+
 		
 		<!-- Utilities -->
 		<dependency>
@@ -102,6 +97,11 @@
 			<groupId>com.duchung.vn</groupId>
 			<artifactId>common</artifactId>
 			<version>1.0.0-SNAPSHOT</version>
+		</dependency>
+		<!-- Swagger -->
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
 		</dependency>
 	</dependencies>
 

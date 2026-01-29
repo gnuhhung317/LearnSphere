@@ -1,0 +1,19 @@
+server:
+  port: 8087
+
+spring:
+  application:
+    name: search-service
+  
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://keycloak:8080/realms/master
+
+  kafka:
+    bootstrap-servers: kafka:9092
+
+eureka:
+  client:
+    enabled: false

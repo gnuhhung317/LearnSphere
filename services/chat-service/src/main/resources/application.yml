@@ -16,14 +16,14 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://keycloak.studyhub.local/realms/studyhub
+          issuer-uri: http://keycloak.studyhub.local/realms/master
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: localhost:9094
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
-        spring.json.add.type.headers: false
+        spring.json.add.type.headers: true
     consumer:
       group-id: chat-service-group
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer

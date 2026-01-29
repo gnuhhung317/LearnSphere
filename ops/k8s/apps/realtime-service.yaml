@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: realtime-service
+  namespace: studyhub-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: realtime-service
+  template:
+    metadata:
+      labels:
+        app: realtime-service
+    spec:
+      containers:
+        - name: realtime-service
+          image: gnuhhung317/studyhub-realtime-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8085
+          envFrom:
+            - configMapRef:
+                name: studyhub-config
+            - secretRef:
+                name: studyhub-secrets
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres-shared-db:5432/realtime_service_db
+            - name: SPRING_DATASOURCE_USERNAME
+              value: user
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: studyhub-secrets
+                  key: DB_PASSWORD
+            - name: LIVEKIT_URL
+              value: "wss://studhub-dev-xpq8abrl.livekit.cloud"
+            - name: LIVEKIT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: studyhub-secrets
+                  key: LIVEKIT_API_KEY
+            - name: LIVEKIT_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: studyhub-secrets
+                  key: LIVEKIT_API_SECRET
+            - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+              value: "http://keycloak:8080/realms/master"
+          # readinessProbe:
+          #   httpGet:
+          #     path: /actuator/health/readiness
+          #     port: 8085
+          #   initialDelaySeconds: 30
+          #   periodSeconds: 10
+          # livenessProbe:
+          #   httpGet:
+          #     path: /actuator/health/liveness
+          #     port: 8085
+          #   initialDelaySeconds: 60
+          #   periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: realtime-service
+  namespace: studyhub-dev
+spec:
+  selector:
+    app: realtime-service
+  ports:
+    - protocol: TCP
+      port: 8085
+      targetPort: 8085

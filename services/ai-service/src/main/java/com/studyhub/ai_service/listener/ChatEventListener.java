@@ -14,7 +14,9 @@ public class ChatEventListener {
 
     private final FileProcessingService fileProcessingService;
 
-    @KafkaListener(topics = "chat.files.synced", groupId = "ai-service-group")
+    @KafkaListener(topics = "chat.files.synced", groupId = "ai-service-group", properties = {
+            "spring.json.value.default.type=com.studyhub.ai_service.event.FileSyncedEvent"
+    })
     public void handleFileSynced(FileSyncedEvent event) {
         log.info("Received FileSyncedEvent: {}", event);
         // Process asynchronously

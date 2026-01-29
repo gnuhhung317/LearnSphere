@@ -23,13 +23,13 @@ public class EventPublisherService {
      */
     public void publishMessageCreated(ChatMessageCreatedEvent event) {
         try {
-            kafkaTemplate.send("chat.messages.created", 
-                    event.getMessageId().toString(), 
+            kafkaTemplate.send("chat.messages.created",
+                    event.getMessageId().toString(),
                     event);
-            log.info("Published ChatMessageCreated event: messageId={}, roomId={}", 
+            log.info("Published ChatMessageCreated event: messageId={}, roomId={}",
                     event.getMessageId(), event.getRoomId());
         } catch (Exception e) {
-            log.error("Failed to publish ChatMessageCreated event: messageId={}", 
+            log.error("Failed to publish ChatMessageCreated event: messageId={}",
                     event.getMessageId(), e);
         }
     }
@@ -39,13 +39,13 @@ public class EventPublisherService {
      */
     public void publishRoomCreated(RoomCreatedEvent event) {
         try {
-            kafkaTemplate.send("chat.rooms.created", 
-                    event.getRoomId().toString(), 
+            kafkaTemplate.send("chat.rooms.created",
+                    event.getRoomId().toString(),
                     event);
-            log.info("Published RoomCreated event: roomId={}, roomName={}", 
+            log.info("Published RoomCreated event: roomId={}, roomName={}",
                     event.getRoomId(), event.getRoomName());
         } catch (Exception e) {
-            log.error("Failed to publish RoomCreated event: roomId={}", 
+            log.error("Failed to publish RoomCreated event: roomId={}",
                     event.getRoomId(), e);
         }
     }
@@ -55,13 +55,13 @@ public class EventPublisherService {
      */
     public void publishUserJoinedRoom(UserJoinedRoomEvent event) {
         try {
-            kafkaTemplate.send("chat.rooms.user-joined", 
-                    event.getRoomId().toString(), 
+            kafkaTemplate.send("chat.rooms.user-joined",
+                    event.getRoomId().toString(),
                     event);
-            log.info("Published UserJoinedRoom event: roomId={}, userId={}", 
+            log.info("Published UserJoinedRoom event: roomId={}, userId={}",
                     event.getRoomId(), event.getUserId());
         } catch (Exception e) {
-            log.error("Failed to publish UserJoinedRoom event: roomId={}, userId={}", 
+            log.error("Failed to publish UserJoinedRoom event: roomId={}, userId={}",
                     event.getRoomId(), event.getUserId(), e);
         }
     }
@@ -78,7 +78,7 @@ public class EventPublisherService {
                     .eventId(java.util.UUID.randomUUID().toString())
                     .timestamp(System.currentTimeMillis())
                     .build();
-            
+
             kafkaTemplate.send("chat.messages.edited", messageId.toString(), event);
             log.info("Published MessageEdited event: messageId={}", messageId);
         } catch (Exception e) {
@@ -97,11 +97,26 @@ public class EventPublisherService {
                     .eventId(java.util.UUID.randomUUID().toString())
                     .timestamp(System.currentTimeMillis())
                     .build();
-            
+
             kafkaTemplate.send("chat.messages.deleted", messageId.toString(), event);
             log.info("Published MessageDeleted event: messageId={}", messageId);
         } catch (Exception e) {
             log.error("Failed to publish MessageDeleted event: messageId={}", messageId, e);
+        }
+    }
+
+    /**
+     * Publish RoomDeleted event to Kafka
+     */
+    public void publishRoomDeleted(com.studyhub.chat_service.event.RoomDeletedEvent event) {
+        try {
+            kafkaTemplate.send("chat.rooms.deleted",
+                    event.getRoomId().toString(),
+                    event);
+            log.info("Published RoomDeleted event: roomId={}", event.getRoomId());
+        } catch (Exception e) {
+            log.error("Failed to publish RoomDeleted event: roomId={}",
+                    event.getRoomId(), e);
         }
     }
 

@@ -31,16 +31,19 @@ public class Room {
     @Column(name = "creator_id", nullable = false)
     private String creatorId;
 
+    @Builder.Default
     @Column(name = "is_public")
     private Boolean isPublic = true;
 
-//    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
     @Column(name = "room_type", nullable = false)
-    private String roomType = RoomType.GROUP.toString();
+    private RoomType roomType = RoomType.GROUP;
 
     @Column(name = "invite_code", unique = true)
     private String inviteCode;
 
+    @Builder.Default
     @Column(name = "max_members")
     private Integer maxMembers = 50;
 
@@ -53,9 +56,11 @@ public class Room {
     private Instant updatedAt;
 
     // Relationships
+    @Builder.Default
     @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RoomMember> members = new ArrayList<>();
 
+    @Builder.Default
     @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Channel> channels = new ArrayList<>();
 

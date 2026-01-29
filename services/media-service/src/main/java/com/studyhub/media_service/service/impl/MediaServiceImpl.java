@@ -73,8 +73,7 @@ public class MediaServiceImpl implements MediaService {
                     storedFilename,
                     file.getInputStream(),
                     file.getSize(),
-                    file.getContentType()
-            );
+                    file.getContentType());
 
             // Update status to READY
             mediaFile.setStatus(MediaFile.FileStatus.READY);
@@ -158,8 +157,7 @@ public class MediaServiceImpl implements MediaService {
                     storedFilename,
                     file.getInputStream(),
                     file.getSize(),
-                    file.getContentType()
-            );
+                    file.getContentType());
 
             // Update status to READY
             mediaFile.setStatus(MediaFile.FileStatus.READY);
@@ -186,6 +184,60 @@ public class MediaServiceImpl implements MediaService {
     public java.util.List<MediaFile> getRoomFilesByType(Long roomId, MediaFile.FileType fileType) {
         log.info("Getting files for room: {} with type: {}", roomId, fileType);
         return mediaFileRepository.findByRoomIdAndFileTypeOrderByUploadedAtDesc(roomId, fileType);
+    }
+
+    @Override
+    public java.util.List<MediaFile> getUserFiles(String uploadedBy) {
+        log.info("Getting all files for user: {}", uploadedBy);
+        // By default returning root files + all files might be confusing.
+        // Let's keep existing behavior for backward compatibility or update to return
+        // ALL for now.
+        // Or better: update to return all so search works on frontend?
+        // Actually the requirement is usually 'My Files' view.
+        // Let's return ALL for now to not break existing 'all files' view,
+        // frontend will filter if needed or we introduce getFolderContents for drill
+        // down.
+        return mediaFileRepository.findByUploadedBy(uploadedBy);
+    }
+
+    @Override
+    public java.util.List<MediaFile> searchFiles(String query, String uploadedBy) {
+        log.info("Searching files with query: {} for user: {}", query, uploadedBy);
+        return mediaFileRepository.findByOriginalFilenameContainingIgnoreCaseAndUploadedBy(query, uploadedBy);
+    }
+
+    @Override
+    public java.util.List<MediaFile> getRecentFiles(String uploadedBy) {
+        log.info("Getting recent files for user: {}", uploadedBy);
+        return mediaFileRepository.findTop5ByUploadedByOrderByUploadedAtDesc(uploadedBy);
+    }
+
+    @Override
+    public MediaFile createFolder(String name, String parentId, String createdBy) {
+        String id = UUID.randomUUID().toString();
+        MediaFile folder = MediaFile.builder()
+                .id(id)
+                .originalFilename(name)
+                .storedFilename(id) // Placeholder
+                .contentType("application/x-directory")
+                .fileSize(0L)
+                .fileType(MediaFile.FileType.FOLDER)
+                .bucketName(defaultBucket)
+                .uploadedBy(createdBy)
+                .uploadedAt(LocalDateTime.now())
+                .status(MediaFile.FileStatus.READY)
+                .parentId(parentId)
+                .build();
+
+        return mediaFileRepository.save(folder);
+    }
+
+    @Override
+    public java.util.List<MediaFile> getFolderContents(String folderId, String uploadedBy) {
+        if (folderId == null) {
+            return mediaFileRepository.findByParentIdIsNullAndUploadedByOrderByUploadedAtDesc(uploadedBy);
+        }
+        return mediaFileRepository.findByParentIdAndUploadedByOrderByUploadedAtDesc(folderId, uploadedBy);
     }
 
     private String getFileExtension(String filename) {

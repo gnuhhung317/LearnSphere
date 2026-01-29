@@ -4,10 +4,11 @@ import com.studyhub.auth_service.dto.interal_request.CreateUserRequest;
 import com.studyhub.auth_service.dto.response.RegisterResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 @FeignClient(name = "user-service")
 public interface UserClient {
 
     @PostMapping("api/v1/users")
-    RegisterResponse register(CreateUserRequest request);
+    RegisterResponse register(@RequestBody CreateUserRequest request);
 }

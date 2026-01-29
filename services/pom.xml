@@ -48,7 +48,9 @@
         <module>search-service</module>
         <module>realtime-service</module>
         <module>eureka-server</module>
+        <module>learning-service</module>
     </modules>
+
 
     <dependencyManagement>
         <dependencies>
@@ -168,6 +170,18 @@
                 <groupId>com.fasterxml.jackson.datatype</groupId>
                 <artifactId>jackson-datatype-jsr310</artifactId>
                 <version>${jackson-databind.version}</version>
+            </dependency>
+
+            <!-- Swagger / OpenAPI -->
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>2.6.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+                <version>2.6.0</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

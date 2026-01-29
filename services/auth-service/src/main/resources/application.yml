@@ -10,7 +10,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://keycloak.studyhub.local/realms/studyhub
+          issuer-uri: http://keycloak.studyhub.local/realms/master
 
 ---
 spring:
@@ -52,8 +52,13 @@ eureka:
 
 keycloak:
   server-url: http://keycloak.studyhub.local
-  realm: studyhub
+  realm: master
   admin-user: admin
   admin-password: admin
-  client-id: studyhub-backend
-  client-secret: 8mrD0Tbn8Fhcl3KGt8NCylyYeJfsTFSz
+  client-id: admin-cli
+  client-secret: D0SoSZu2DzFCN2ci1sZBGSarjKz7Z7V6
+
+---
+logging:
+  level:
+    com.studyhub.auth_service.client.KeycloakClient: DEBUG

@@ -32,4 +32,7 @@ public class RoomMember {
     @CreationTimestamp
     @Column(name = "joined_at", nullable = false, updatable = false)
     private Instant joinedAt;
+
+    @Column(name = "last_read")
+    private Instant lastRead;
 }

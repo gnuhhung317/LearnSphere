@@ -87,6 +87,16 @@ public class RoomController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<List<RoomSummary>>> searchRooms(
+            @RequestParam("q") String query) {
+        String userId = JwtUtil.getUserIdFromJwt();
+        log.info("GET /api/v1/rooms/search - Searching rooms with query: {}", query);
+
+        List<RoomSummary> response = roomService.searchRooms(query, userId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
     @PostMapping("/{roomId}/join")
     public ResponseEntity<ApiResponse<RoomResponse>> joinRoom(
             @PathVariable Long roomId,
@@ -149,6 +159,13 @@ public class RoomController {
 
         roomService.transferOwnership(roomId, request.getNewOwnerId(), currentUserId);
         return ResponseEntity.ok(ApiResponse.success("Ownership transferred successfully", null));
+    }
+
+    @PostMapping("/{roomId}/read")
+    public ResponseEntity<ApiResponse<Void>> markRoomAsRead(@PathVariable Long roomId) {
+        String userId = JwtUtil.getUserIdFromJwt();
+        roomService.markRoomAsRead(roomId, userId);
+        return ResponseEntity.ok(ApiResponse.success("Room marked as read", null));
     }
 
     // ========== DIRECT MESSAGE ENDPOINTS ==========

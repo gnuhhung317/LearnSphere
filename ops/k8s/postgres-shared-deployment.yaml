@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: postgres-shared
+  name: postgres-shared-db
+  namespace: studyhub-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-shared
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: postgres-shared
+    spec:
+      containers:
+        - env:
+            - name: POSTGRES_DB
+              value: postgres # Default DB, others created by script
+            - name: POSTGRES_PASSWORD
+              value: password
+            - name: POSTGRES_USER
+              value: user
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          image: pgvector/pgvector:pg16
+          name: postgres-shared-db
+          ports:
+            - containerPort: 5432
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: postgres-shared-data
+            - mountPath: /docker-entrypoint-initdb.d
+              name: postgres-init-scripts
+      restartPolicy: Always
+      volumes:
+        - name: postgres-shared-data
+          persistentVolumeClaim:
+            claimName: postgres-shared-data
+        - name: postgres-init-scripts
+          configMap:
+            name: postgres-init-scripts
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app: postgres-shared
+  name: postgres-shared-data
+  namespace: studyhub-dev
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Mi

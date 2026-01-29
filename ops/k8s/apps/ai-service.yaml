@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-service
+  namespace: studyhub-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-service
+  template:
+    metadata:
+      labels:
+        app: ai-service
+    spec:
+      containers:
+        - name: ai-service
+          image: gnuhhung317/studyhub-ai-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8086
+          envFrom:
+            - configMapRef:
+                name: studyhub-config
+            - secretRef:
+                name: studyhub-secrets
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres-shared-db:5432/ai_service_db
+            - name: SPRING_DATASOURCE_USERNAME
+              value: user
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: studyhub-secrets
+                  key: DB_PASSWORD
+            - name: GOOGLE_GENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: studyhub-secrets
+                  key: GOOGLE_GENAI_API_KEY
+            - name: GOOGLE_GENAI_PROJECT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: studyhub-config
+                  key: GOOGLE_GENAI_PROJECT_ID
+            - name: GOOGLE_GENAI_LOCATION
+              valueFrom:
+                configMapKeyRef:
+                  name: studyhub-config
+                  key: GOOGLE_GENAI_LOCATION
+            - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+              value: "http://keycloak:8080/realms/master"
+          # readinessProbe:
+          #   httpGet:
+          #     path: /actuator/health/readiness
+          #     port: 8086
+          #   initialDelaySeconds: 30
+          #   periodSeconds: 10
+          # livenessProbe:
+          #   httpGet:
+          #     path: /actuator/health/liveness
+          #     port: 8086
+          #   initialDelaySeconds: 60
+          #   periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-service
+  namespace: studyhub-dev
+spec:
+  selector:
+    app: ai-service
+  ports:
+    - protocol: TCP
+      port: 8086
+      targetPort: 8086

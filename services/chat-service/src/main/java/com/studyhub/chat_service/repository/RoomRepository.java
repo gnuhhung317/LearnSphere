@@ -13,32 +13,36 @@ import java.util.Optional;
 @Repository
 public interface RoomRepository extends JpaRepository<Room, Long> {
 
-    @Query("SELECT r FROM Room r JOIN r.members m WHERE m.userId = :userId")
-    List<Room> findRoomsByUserId(@Param("userId") String userId);
+        @Query("SELECT r FROM Room r JOIN r.members m WHERE m.id.userId = :userId")
+        List<Room> findRoomsByUserId(@Param("userId") String userId);
 
-    @Query("SELECT r FROM Room r WHERE r.isPublic = true")
-    List<Room> findPublicRooms();
+        @Query("SELECT r FROM Room r WHERE r.isPublic = true")
+        List<Room> findPublicRooms();
 
-    Optional<Room> findByInviteCode(String inviteCode);
+        Optional<Room> findByInviteCode(String inviteCode);
 
-    @Query("SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END FROM RoomMember m WHERE m.room.id = :roomId AND m.userId = :userId")
-    boolean existsMemberInRoom(@Param("roomId") Long roomId, @Param("userId") String userId);
+        @Query("SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END FROM RoomMember m WHERE m.id.roomId = :roomId AND m.id.userId = :userId")
+        boolean existsMemberInRoom(@Param("roomId") Long roomId, @Param("userId") String userId);
 
-    @Query("SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END FROM RoomMember m WHERE m.room.id = :roomId AND m.userId = :userId AND m.isOwner = true")
-    boolean isOwnerOfRoom(@Param("roomId") Long roomId, @Param("userId") String userId);
+        @Query("SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END FROM RoomMember m WHERE m.id.roomId = :roomId AND m.id.userId = :userId AND m.isOwner = true")
+        boolean isOwnerOfRoom(@Param("roomId") Long roomId, @Param("userId") String userId);
 
-    /**
-     * Find existing DM room between two users DM rooms always have exactly 2
-     * members
-     */
-    @Query("SELECT r FROM Room r "
-            + "WHERE r.roomType = :roomType "
-            + "AND (SELECT COUNT(m) FROM RoomMember m WHERE m.room.id = r.id) = 2 "
-            + "AND EXISTS (SELECT 1 FROM RoomMember m1 WHERE m1.room.id = r.id AND m1.userId = :userId1) "
-            + "AND EXISTS (SELECT 1 FROM RoomMember m2 WHERE m2.room.id = r.id AND m2.userId = :userId2)")
-    Optional<Room> findDirectMessageRoom(
-            @Param("roomType") RoomType roomType,
-            @Param("userId1") String userId1,
-            @Param("userId2") String userId2
-    );
+        /**
+         * Find existing DM room between two users DM rooms always have exactly 2
+         * members
+         */
+        @Query("SELECT r FROM Room r "
+                        + "WHERE r.roomType = :roomType "
+                        + "AND (SELECT COUNT(m) FROM RoomMember m WHERE m.room.id = r.id) = 2 "
+                        + "AND EXISTS (SELECT 1 FROM RoomMember m1 WHERE m1.room.id = r.id AND m1.id.userId = :userId1) "
+                        + "AND EXISTS (SELECT 1 FROM RoomMember m2 WHERE m2.room.id = r.id AND m2.id.userId = :userId2)")
+        Optional<Room> findDirectMessageRoom(
+                        @Param("roomType") RoomType roomType,
+                        @Param("userId1") String userId1,
+                        @Param("userId2") String userId2);
+
+        @Query("SELECT r FROM Room r LEFT JOIN r.members m " +
+                        "WHERE (lower(r.name) LIKE lower(concat('%', :query, '%'))) " +
+                        "AND (r.isPublic = true OR m.id.userId = :userId)")
+        List<Room> searchRooms(@Param("query") String query, @Param("userId") String userId);
 }
