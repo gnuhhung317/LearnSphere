@@ -17,15 +17,15 @@ echo.
 echo ========================================================
 echo [Step 1] Building Maven Projects (Clean Package)
 echo ========================================================
-REM pushd "services"
+pushd "services"
 REM Use one of the sub-modules' maven wrapper to build the parent project
-REM call auth-service\mvnw.cmd clean package -DskipTests
-@REM if errorlevel 1 (
-@REM     echo [ERROR] Maven build failed.
-@REM     popd
-@REM     exit /b 1
-@REM )
-@REM popd
+call auth-service\mvnw.cmd clean package -DskipTests
+if errorlevel 1 (
+    echo [ERROR] Maven build failed.
+    popd
+    exit /b 1
+)
+popd
 echo.
 echo ========================================================
 echo [Step 2] Building Docker Images

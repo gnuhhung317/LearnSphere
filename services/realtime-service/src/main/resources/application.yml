@@ -38,6 +38,6 @@ logging:
     org.springframework.web.socket: DEBUG
 
 livekit:
-  url: http://localhost:7880
-  api-key: devkey
-  api-secret: secret
+  url: https://studhub-dev-xpq8abrl.livekit.cloud
+  api-key: APIdwJZWgvf39B8
+  api-secret: JyjpEjJDr5qfJRXjHyuNAVzY8HcV7Sfg6B8M2QYM6AQ

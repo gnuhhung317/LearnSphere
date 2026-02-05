@@ -58,12 +58,14 @@ public class UserController {
         UserProfileViewResponse profile = userProfileService.getUserProfileByKeycloakId(userId);
         return ResponseEntity.ok(profile);
     }
+
     @PostMapping("/basic/bulk")
     public ResponseEntity<List<UserInfo>> getBasicBulk(@RequestBody KeycloakUserIdList keycloakIds) {
         log.info("Fetching basic profile for keycloakIds: {}", keycloakIds);
         List<UserInfo> profiles = userService.getBasicBulk(keycloakIds.getUserIds());
         return ResponseEntity.ok(profiles);
     }
+
     @GetMapping("/basic/{userId}")
     public ResponseEntity<UserInfo> getBasic(@PathVariable String userId) {
         log.info("Fetching basic profile for userId: {}", userId);
@@ -93,6 +95,18 @@ public class UserController {
         log.info("Updating profile for keycloakUserId: {}", keycloakUserId);
         UserProfileViewResponse updatedProfile = userProfileService.updateUserProfile(keycloakUserId, request);
         return ResponseEntity.ok(updatedProfile);
+    }
+
+    /**
+     * Update user preferences (notifications, privacy, AI settings)
+     */
+    @PatchMapping("/me/preferences")
+    public ResponseEntity<UserProfileViewResponse> updatePreferences(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody UpdatePreferencesRequest request) {
+        String keycloakUserId = requireSubject(jwt);
+        UserProfileViewResponse profile = userProfileService.updatePreferences(keycloakUserId, request);
+        return ResponseEntity.ok(profile);
     }
 
     /**

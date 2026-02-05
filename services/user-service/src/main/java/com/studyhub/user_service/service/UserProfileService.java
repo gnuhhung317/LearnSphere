@@ -34,8 +34,13 @@ public interface UserProfileService {
     UserProfileViewResponse updateUserProfile(String keycloakUserId, UpdateUserProfileRequest request);
 
     /**
+     * Update user preferences
+     */
+    UserProfileViewResponse updatePreferences(String keycloakUserId, UpdatePreferencesRequest request);
 
-          ** Update user statistics
+    /**
+     ** 
+     * Update user statistics
      */
     UserStatsDto updateUserStats(String keycloakUserId, UpdateStatsRequest request);
 
@@ -51,8 +56,8 @@ public interface UserProfileService {
 
     /**
      * Get all learning paths for a user
-
-          **/
+     * 
+     **/
     List<LearningPathDto> getUserLearningPaths(String keycloakUserId);
 
     /**

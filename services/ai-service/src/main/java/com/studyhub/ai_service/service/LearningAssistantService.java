@@ -252,12 +252,12 @@ public class LearningAssistantService {
                 {context}
                 """;
 
+        PromptTemplate template = new PromptTemplate(promptText);
+        Prompt prompt = template.create(Map.of("context", context));
+
         ChatClient chatClient = chatClientBuilder.build();
         try {
-            String response = chatClient.prompt()
-                    .user(u -> u.text(promptText).arg("context", context))
-                    .call()
-                    .content();
+            String response = chatClient.prompt(prompt).call().content();
 
             // Clean up code blocks if LLM still includes them
             return response.replaceAll("```mermaid", "").replaceAll("```", "").trim();

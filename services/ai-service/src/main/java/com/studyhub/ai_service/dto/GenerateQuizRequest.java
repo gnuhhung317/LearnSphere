@@ -8,4 +8,7 @@ public class GenerateQuizRequest {
     private String topic;
     private int numberOfQuestions = 15;
     private String difficulty = "Medium";
+    private Long resourceId;
+    private String resourceType;
+    private String resourceUrl;
 }

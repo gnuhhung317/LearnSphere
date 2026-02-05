@@ -75,6 +75,13 @@ public class User {
     @Column(name = "privacy", columnDefinition = "jsonb")
     private Map<String, Object> privacy;
 
+    /**
+     * AI settings stored as JSONB
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "ai_settings", columnDefinition = "jsonb")
+    private Map<String, Object> aiSettings;
+
     @Column(name = "status", length = 20)
     private String status = "active";
 

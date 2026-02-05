@@ -151,6 +151,94 @@ public class LearningController {
     public ResponseEntity<Long> countDueFlashcards(@RequestHeader("X-User-Id") String userId) {
         return ResponseEntity.ok(learningService.countDueFlashcards(userId));
     }
+
+    // ==================== Study Mode Endpoints ====================
+
+    /**
+     * Get all due flashcards for the current user across all learning spaces.
+     * Used by the Study Dashboard.
+     */
+    @GetMapping("/study/due")
+    public ResponseEntity<java.util.List<com.studyhub.learningservice.dto.StudyFlashcardDto>> getAllDueFlashcards(
+            @RequestHeader("X-User-Id") String userId) {
+        return ResponseEntity.ok(learningService.getAllDueFlashcards(userId));
+    }
+
+    /**
+     * Get study statistics including streak, cards reviewed, etc.
+     */
+    @GetMapping("/study/stats")
+    public ResponseEntity<com.studyhub.learningservice.dto.StudyStatsDto> getStudyStats(
+            @RequestHeader("X-User-Id") String userId) {
+        return ResponseEntity.ok(learningService.getStudyStats(userId));
+    }
+
+    /**
+     * Review a flashcard in study mode. Updates both the flashcard SRS data
+     * and the user's study stats (streak, daily count, etc.)
+     */
+    @PostMapping("/study/review/{flashcardId}")
+    public ResponseEntity<com.studyhub.learningservice.dto.FlashcardDto> reviewFlashcardInStudyMode(
+            @RequestHeader("X-User-Id") String userId,
+            @PathVariable Long flashcardId,
+            @RequestBody ReviewFlashcardRequest request) {
+        return ResponseEntity.ok(learningService.reviewFlashcardWithStats(userId, flashcardId, request.getRating()));
+    }
+
+    // ==================== Progress Dashboard Endpoints ====================
+
+    /**
+     * Get comprehensive progress dashboard data including heatmap, stats, and
+     * trends.
+     */
+    @GetMapping("/progress")
+    public ResponseEntity<com.studyhub.learningservice.dto.ProgressDashboardDto> getProgressDashboard(
+            @RequestHeader("X-User-Id") String userId) {
+        return ResponseEntity.ok(learningService.getProgressDashboard(userId));
+    }
+
+    // ==================== Daily Goals Endpoints ====================
+
+    @GetMapping("/goals")
+    public ResponseEntity<com.studyhub.learningservice.dto.DailyGoalDto> getDailyGoals(
+            @RequestHeader("X-User-Id") String userId) {
+        return ResponseEntity.ok(learningService.getDailyGoals(userId));
+    }
+
+    @PutMapping("/goals")
+    public ResponseEntity<com.studyhub.learningservice.dto.DailyGoalDto> updateDailyGoals(
+            @RequestHeader("X-User-Id") String userId,
+            @RequestBody com.studyhub.learningservice.dto.DailyGoalDto goalsDto) {
+        return ResponseEntity.ok(learningService.updateDailyGoals(userId, goalsDto));
+    }
+
+    @GetMapping("/goals/progress")
+    public ResponseEntity<com.studyhub.learningservice.dto.DailyGoalProgressDto> getDailyGoalProgress(
+            @RequestHeader("X-User-Id") String userId) {
+        return ResponseEntity.ok(learningService.getDailyGoalProgress(userId));
+    }
+
+    // ==================== Leaderboard Endpoints ====================
+
+    @GetMapping("/leaderboard")
+    public ResponseEntity<com.studyhub.learningservice.dto.LeaderboardDto> getLeaderboard(
+            @RequestHeader("X-User-Id") String userId) {
+        return ResponseEntity.ok(learningService.getLeaderboard(userId));
+    }
+
+    // ==================== Profile Endpoints ====================
+
+    @GetMapping("/achievements")
+    public ResponseEntity<java.util.List<com.studyhub.learningservice.dto.AchievementDto>> getAchievements(
+            @RequestHeader("X-User-Id") String userId) {
+        return ResponseEntity.ok(learningService.getAchievements(userId));
+    }
+
+    @GetMapping("/learning-paths")
+    public ResponseEntity<java.util.List<com.studyhub.learningservice.dto.LearningSpaceDto>> getLearningPaths(
+            @RequestHeader("X-User-Id") String userId) {
+        return ResponseEntity.ok(learningService.getTopLearningPaths(userId));
+    }
 }
 
 @lombok.Data

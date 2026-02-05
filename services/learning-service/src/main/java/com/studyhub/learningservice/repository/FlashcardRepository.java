@@ -16,4 +16,18 @@ public interface FlashcardRepository extends JpaRepository<Flashcard, Long> {
     long countDueFlashcards(@Param("userId") String userId, @Param("now") LocalDateTime now);
 
     List<Flashcard> findByDeckIdAndNextReviewDateBefore(Long deckId, LocalDateTime now);
+
+    /**
+     * Find all due flashcards for a user across all learning spaces.
+     * A card is due if nextReviewDate is null (never reviewed) or in the past.
+     */
+    @Query("SELECT f FROM Flashcard f " +
+            "JOIN f.deck d " +
+            "JOIN d.resource r " +
+            "JOIN r.section s " +
+            "JOIN s.learningSpace ls " +
+            "WHERE ls.userId = :userId " +
+            "AND (f.nextReviewDate IS NULL OR f.nextReviewDate <= :now) " +
+            "ORDER BY f.nextReviewDate ASC NULLS FIRST")
+    List<Flashcard> findDueFlashcardsByUserId(@Param("userId") String userId, @Param("now") LocalDateTime now);
 }

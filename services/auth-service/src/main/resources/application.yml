@@ -56,7 +56,7 @@ keycloak:
   admin-user: admin
   admin-password: admin
   client-id: admin-cli
-  client-secret: D0SoSZu2DzFCN2ci1sZBGSarjKz7Z7V6
+  client-secret: tMMZKCDwl8LVIwuTGTZhqmbv9tLB1s13
 
 ---
 logging:

@@ -32,6 +32,6 @@ eureka:
     enabled: false
 
 livekit:
-  url: ${LIVEKIT_URL:http://livekit:7880}
+  url: ${LIVEKIT_URL:https://studhub-dev-xpq8abrl.livekit.cloud}
   api-key: ${LIVEKIT_API_KEY}
   api-secret: ${LIVEKIT_API_SECRET}
