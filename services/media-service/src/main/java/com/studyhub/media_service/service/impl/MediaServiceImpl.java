@@ -73,8 +73,7 @@ public class MediaServiceImpl implements MediaService {
                     storedFilename,
                     file.getInputStream(),
                     file.getSize(),
-                    file.getContentType()
-            );
+                    file.getContentType());
 
             // Update status to READY
             mediaFile.setStatus(MediaFile.FileStatus.READY);
@@ -101,7 +100,7 @@ public class MediaServiceImpl implements MediaService {
     @Override
     public String getFileUrl(String fileId) {
         // Return backend URL instead of direct MinIO URL
-        return mediaBaseUrl + "/api/media/files/" + fileId + "/download";
+        return mediaBaseUrl + "/api/v1/media/files/" + fileId + "/download";
     }
 
     @Override
@@ -117,6 +116,128 @@ public class MediaServiceImpl implements MediaService {
         }
 
         return storageService.getObject(mediaFile.getBucketName(), mediaFile.getStoredFilename());
+    }
+
+    @Override
+    public MediaFile storeFileInRoom(MultipartFile file, String uploadedBy, Long roomId) throws Exception {
+        // Validate file
+        FileValidator.validateFile(file);
+
+        // Generate unique ID and stored filename
+        String id = UUID.randomUUID().toString();
+        String originalFilename = file.getOriginalFilename();
+        String extension = getFileExtension(originalFilename);
+        String storedFilename = id + (extension.isEmpty() ? "" : "." + extension);
+
+        // Detect file type
+        MediaFile.FileType fileType = FileValidator.detectFileType(file.getContentType());
+
+        // Create MediaFile entity with roomId
+        MediaFile mediaFile = MediaFile.builder()
+                .id(id)
+                .originalFilename(originalFilename)
+                .storedFilename(storedFilename)
+                .contentType(file.getContentType())
+                .fileSize(file.getSize())
+                .fileType(fileType)
+                .bucketName(defaultBucket)
+                .uploadedBy(uploadedBy)
+                .roomId(roomId)
+                .uploadedAt(LocalDateTime.now())
+                .status(MediaFile.FileStatus.PENDING)
+                .build();
+
+        // Save to database first
+        mediaFile = mediaFileRepository.save(mediaFile);
+
+        try {
+            // Upload to MinIO
+            storageService.store(
+                    defaultBucket,
+                    storedFilename,
+                    file.getInputStream(),
+                    file.getSize(),
+                    file.getContentType());
+
+            // Update status to READY
+            mediaFile.setStatus(MediaFile.FileStatus.READY);
+            mediaFile = mediaFileRepository.save(mediaFile);
+
+            log.info("File uploaded successfully to room {}: {} ({})", roomId, originalFilename, id);
+        } catch (Exception e) {
+            log.error("Failed to upload file: {}", originalFilename, e);
+            mediaFile.setStatus(MediaFile.FileStatus.FAILED);
+            mediaFileRepository.save(mediaFile);
+            throw e;
+        }
+
+        return mediaFile;
+    }
+
+    @Override
+    public java.util.List<MediaFile> getRoomFiles(Long roomId) {
+        log.info("Getting all files for room: {}", roomId);
+        return mediaFileRepository.findByRoomIdOrderByUploadedAtDesc(roomId);
+    }
+
+    @Override
+    public java.util.List<MediaFile> getRoomFilesByType(Long roomId, MediaFile.FileType fileType) {
+        log.info("Getting files for room: {} with type: {}", roomId, fileType);
+        return mediaFileRepository.findByRoomIdAndFileTypeOrderByUploadedAtDesc(roomId, fileType);
+    }
+
+    @Override
+    public java.util.List<MediaFile> getUserFiles(String uploadedBy) {
+        log.info("Getting all files for user: {}", uploadedBy);
+        // By default returning root files + all files might be confusing.
+        // Let's keep existing behavior for backward compatibility or update to return
+        // ALL for now.
+        // Or better: update to return all so search works on frontend?
+        // Actually the requirement is usually 'My Files' view.
+        // Let's return ALL for now to not break existing 'all files' view,
+        // frontend will filter if needed or we introduce getFolderContents for drill
+        // down.
+        return mediaFileRepository.findByUploadedBy(uploadedBy);
+    }
+
+    @Override
+    public java.util.List<MediaFile> searchFiles(String query, String uploadedBy) {
+        log.info("Searching files with query: {} for user: {}", query, uploadedBy);
+        return mediaFileRepository.findByOriginalFilenameContainingIgnoreCaseAndUploadedBy(query, uploadedBy);
+    }
+
+    @Override
+    public java.util.List<MediaFile> getRecentFiles(String uploadedBy) {
+        log.info("Getting recent files for user: {}", uploadedBy);
+        return mediaFileRepository.findTop5ByUploadedByOrderByUploadedAtDesc(uploadedBy);
+    }
+
+    @Override
+    public MediaFile createFolder(String name, String parentId, String createdBy) {
+        String id = UUID.randomUUID().toString();
+        MediaFile folder = MediaFile.builder()
+                .id(id)
+                .originalFilename(name)
+                .storedFilename(id) // Placeholder
+                .contentType("application/x-directory")
+                .fileSize(0L)
+                .fileType(MediaFile.FileType.FOLDER)
+                .bucketName(defaultBucket)
+                .uploadedBy(createdBy)
+                .uploadedAt(LocalDateTime.now())
+                .status(MediaFile.FileStatus.READY)
+                .parentId(parentId)
+                .build();
+
+        return mediaFileRepository.save(folder);
+    }
+
+    @Override
+    public java.util.List<MediaFile> getFolderContents(String folderId, String uploadedBy) {
+        if (folderId == null) {
+            return mediaFileRepository.findByParentIdIsNullAndUploadedByOrderByUploadedAtDesc(uploadedBy);
+        }
+        return mediaFileRepository.findByParentIdAndUploadedByOrderByUploadedAtDesc(folderId, uploadedBy);
     }
 
     private String getFileExtension(String filename) {

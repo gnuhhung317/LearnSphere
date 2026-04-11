@@ -1,6 +1,7 @@
 package com.studyhub.user_service.controller;
 
 import com.studyhub.user_service.dto.*;
+import com.studyhub.user_service.dto.request.KeycloakUserIdList;
 import com.studyhub.user_service.service.UserProfileService;
 import com.studyhub.user_service.service.UserService;
 import jakarta.validation.Valid;
@@ -52,9 +53,23 @@ public class UserController {
      * is used by other services (e.g., chat-service) to fetch user info
      */
     @GetMapping("/{userId}")
-    public ResponseEntity<UserProfileViewResponse> getUserById(@PathVariable Long userId) {
+    public ResponseEntity<UserProfileViewResponse> getUserById(@PathVariable String userId) {
         log.info("Fetching profile for userId: {}", userId);
-        UserProfileViewResponse profile = userProfileService.getUserProfileViewById(userId);
+        UserProfileViewResponse profile = userProfileService.getUserProfileByKeycloakId(userId);
+        return ResponseEntity.ok(profile);
+    }
+
+    @PostMapping("/basic/bulk")
+    public ResponseEntity<List<UserInfo>> getBasicBulk(@RequestBody KeycloakUserIdList keycloakIds) {
+        log.info("Fetching basic profile for keycloakIds: {}", keycloakIds);
+        List<UserInfo> profiles = userService.getBasicBulk(keycloakIds.getUserIds());
+        return ResponseEntity.ok(profiles);
+    }
+
+    @GetMapping("/basic/{userId}")
+    public ResponseEntity<UserInfo> getBasic(@PathVariable String userId) {
+        log.info("Fetching basic profile for userId: {}", userId);
+        UserInfo profile = userService.getBasic(userId);
         return ResponseEntity.ok(profile);
     }
 
@@ -80,6 +95,18 @@ public class UserController {
         log.info("Updating profile for keycloakUserId: {}", keycloakUserId);
         UserProfileViewResponse updatedProfile = userProfileService.updateUserProfile(keycloakUserId, request);
         return ResponseEntity.ok(updatedProfile);
+    }
+
+    /**
+     * Update user preferences (notifications, privacy, AI settings)
+     */
+    @PatchMapping("/me/preferences")
+    public ResponseEntity<UserProfileViewResponse> updatePreferences(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody UpdatePreferencesRequest request) {
+        String keycloakUserId = requireSubject(jwt);
+        UserProfileViewResponse profile = userProfileService.updatePreferences(keycloakUserId, request);
+        return ResponseEntity.ok(profile);
     }
 
     /**

@@ -29,7 +29,7 @@ public class ChannelService {
     private final RoomRepository roomRepository;
 
     @Transactional
-    public ChannelResponse createChannel(CreateChannelRequest request, Long currentUserId) {
+    public ChannelResponse createChannel(CreateChannelRequest request, String currentUserId) {
         log.info("Creating channel: {} in room: {} by user: {}", 
             request.getName(), request.getRoomId(), currentUserId);
 
@@ -61,7 +61,7 @@ public class ChannelService {
     }
 
     @Transactional
-    public ChannelResponse updateChannel(Long channelId, UpdateChannelRequest request, Long currentUserId) {
+    public ChannelResponse updateChannel(Long channelId, UpdateChannelRequest request, String currentUserId) {
         log.info("Updating channel: {} by user: {}", channelId, currentUserId);
 
         Channel channel = getChannelOrThrow(channelId);
@@ -92,7 +92,7 @@ public class ChannelService {
     }
 
     @Transactional
-    public void deleteChannel(Long channelId, Long currentUserId) {
+    public void deleteChannel(Long channelId, String currentUserId) {
         log.info("Deleting channel: {} by user: {}", channelId, currentUserId);
 
         Channel channel = getChannelOrThrow(channelId);
@@ -117,7 +117,7 @@ public class ChannelService {
     }
 
     @Transactional(readOnly = true)
-    public ChannelResponse getChannelById(Long channelId, Long currentUserId) {
+    public ChannelResponse getChannelById(Long channelId, String currentUserId) {
         Channel channel = getChannelOrThrow(channelId);
         
         // Validate membership
@@ -129,7 +129,7 @@ public class ChannelService {
     }
 
     @Transactional(readOnly = true)
-    public List<ChannelResponse> getRoomChannels(Long roomId, Long currentUserId) {
+    public List<ChannelResponse> getRoomChannels(Long roomId, String currentUserId) {
         log.info("Getting channels for room: {}", roomId);
 
         // Validate membership

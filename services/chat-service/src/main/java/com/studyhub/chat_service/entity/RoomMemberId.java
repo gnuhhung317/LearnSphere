@@ -19,5 +19,5 @@ public class RoomMemberId implements Serializable {
     private Long roomId;
     
     @Column(name = "user_id")
-    private Long userId;
+    private String userId;
 }

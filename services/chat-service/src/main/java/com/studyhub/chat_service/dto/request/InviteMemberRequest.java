@@ -13,5 +13,5 @@ import lombok.NoArgsConstructor;
 public class InviteMemberRequest {
     
     @NotNull(message = "User ID is required")
-    private Long userId;
+    private String userId;
 }

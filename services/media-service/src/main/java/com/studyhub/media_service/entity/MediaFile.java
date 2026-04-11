@@ -41,6 +41,9 @@ public class MediaFile {
 
     @Column(name = "uploaded_by")
     private String uploadedBy;
+    
+    @Column(name = "room_id")
+    private Long roomId;
 
     @CreationTimestamp
     @Column(name = "uploaded_at", nullable = false, updatable = false)
@@ -53,8 +56,11 @@ public class MediaFile {
     @Column(name = "thumbnail_id")
     private String thumbnailId;
 
+    @Column(name = "parent_id")
+    private String parentId;
+
     public enum FileType {
-        IMAGE, DOCUMENT, VIDEO, AUDIO, OTHER
+        IMAGE, DOCUMENT, VIDEO, AUDIO, OTHER, FOLDER
     }
 
     public enum FileStatus {

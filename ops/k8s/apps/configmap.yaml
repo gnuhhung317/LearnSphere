@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: studyhub-config
+  namespace: studyhub-dev
+data:
+  SPRING_PROFILES_ACTIVE: "prod"
+  JAVA_OPTS: "-Xmx512m -Xms256m"
+  GOOGLE_GENAI_PROJECT_ID: "studyhub-ai"
+  GOOGLE_GENAI_LOCATION: "us-central1"

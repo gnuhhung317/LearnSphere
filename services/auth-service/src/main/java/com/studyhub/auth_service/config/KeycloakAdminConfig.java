@@ -12,7 +12,7 @@ public class KeycloakAdminConfig {
     @Value("${keycloak.server-url:localhost:8080}")
     private String keycloakUrl;
 
-    @Value("${keycloak.realm:studyhub-backend}")
+    @Value("${keycloak.realm:studyhub}")
     private String keycloakRealm;
 
     @Value("${keycloak.admin-user:admin}")
@@ -29,7 +29,7 @@ public class KeycloakAdminConfig {
 
     @Bean
     public Keycloak keycloak() {
-        String clientCredentialType = "client_credentials";
+//        String clientCredentialType = "client_credentials";
         String passwordCredentialType = "password";
         return KeycloakBuilder.builder()
                 .serverUrl(keycloakUrl)
@@ -37,6 +37,8 @@ public class KeycloakAdminConfig {
                 .username(keycloakUsername)
                 .password(keycloakPassword)
                 .clientId("admin-cli")
+//                .clientSecret(keycloakClientSecret)
+//                .clientId(keycloakClientId)
 //                .clientSecret(keycloakClientSecret)
                 .grantType(passwordCredentialType)
                 .build();

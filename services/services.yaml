@@ -1,0 +1,78 @@
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: studyhub-api-gateway
+#   namespace: studyhub-dev
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app: api-gateway
+#   template:
+#     metadata:
+#       labels:
+#         app: api-gateway
+#     spec:
+#       containers:
+#       - name: api-gateway
+#         image: gnuhhung317/studyhub-api-gateway:latest
+#         ports:
+#         - containerPort: 8079
+#         env:
+
+# ---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: studyhub-api-gateway
+#   namespace: studyhub-dev
+# spec:
+#   selector: 
+#     app: api-gateway
+#   ports:
+#   - protocol: TCP
+#     port: 8079
+#     targetPort: 8079
+#   type: ClusterIP
+
+
+# ---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: studyhub-eureka-server
+  namespace: studyhub-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eureka-server
+  template:
+    metadata:
+      labels:
+        app: eureka-server
+    spec:
+      containers:
+      - name: eureka-server
+        image: gnuhhung317/studyhub-eureka-server:latest
+        ports:
+        - containerPort: 8079
+        env:
+        - name: JAVA_OPTS
+          value: "-Dorg.glassfish.jersey.innate.VirtualThreadUtil.unshare=true --enable-preview"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: studyhub-eureka-server
+  namespace: studyhub-dev
+spec:
+  selector: 
+    app: eureka-server
+  ports:
+  - protocol: TCP
+    port: 8761
+    targetPort: 8761
+  type: ClusterIP

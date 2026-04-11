@@ -75,6 +75,13 @@ public class User {
     @Column(name = "privacy", columnDefinition = "jsonb")
     private Map<String, Object> privacy;
 
+    /**
+     * AI settings stored as JSONB
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "ai_settings", columnDefinition = "jsonb")
+    private Map<String, Object> aiSettings;
+
     @Column(name = "status", length = 20)
     private String status = "active";
 
@@ -95,7 +102,7 @@ public class User {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
     private UserProfile userProfile;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)

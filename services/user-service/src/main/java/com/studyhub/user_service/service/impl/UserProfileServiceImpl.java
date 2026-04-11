@@ -141,6 +141,31 @@ public class UserProfileServiceImpl implements UserProfileService {
 
     @Override
     @Transactional
+    public UserProfileViewResponse updatePreferences(String keycloakUserId, UpdatePreferencesRequest request) {
+        log.info("Updating preferences for keycloakUserId: {}", keycloakUserId);
+
+        User user = userService.getUserByKeycloakId(keycloakUserId);
+
+        if (request.getNotifications() != null) {
+            user.setNotifications(request.getNotifications());
+        }
+        if (request.getAccessibility() != null) {
+            user.setAccessibility(request.getAccessibility());
+        }
+        if (request.getPrivacy() != null) {
+            user.setPrivacy(request.getPrivacy());
+        }
+        if (request.getAiSettings() != null) {
+            user.setAiSettings(request.getAiSettings());
+        }
+
+        user = userRepository.save(user);
+
+        return userMapper.toProfileViewResponse(user);
+    }
+
+    @Override
+    @Transactional
     public UserStatsDto updateUserStats(String keycloakUserId, UpdateStatsRequest request) {
         log.info("Updating stats for keycloakUserId: {}", keycloakUserId);
 

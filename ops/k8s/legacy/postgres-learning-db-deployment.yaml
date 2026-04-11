@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    io.kompose.service: postgres-learning-db
+  name: postgres-learning-db
+  namespace: studyhub-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: postgres-learning-db
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        io.kompose.service: postgres-learning-db
+    spec:
+      containers:
+        - env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_DB
+              value: learning_service_db
+            - name: POSTGRES_PASSWORD
+              value: password
+            - name: POSTGRES_USER
+              value: user
+          image: postgres:16-alpine
+          name: postgres-learning-db
+          ports:
+            - containerPort: 5432
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: postgres-learning-data
+      restartPolicy: Always
+      volumes:
+        - name: postgres-learning-data
+          persistentVolumeClaim:
+            claimName: postgres-learning-data

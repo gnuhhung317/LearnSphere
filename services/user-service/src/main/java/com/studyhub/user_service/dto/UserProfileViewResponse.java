@@ -39,6 +39,7 @@ public class UserProfileViewResponse {
     private Map<String, Boolean> notifications;
     private Map<String, Boolean> accessibility;
     private Map<String, Object> privacy;
+    private Map<String, Object> aiSettings;
 
     // User statistics
     private UserStatsDto stats;

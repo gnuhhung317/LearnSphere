@@ -13,10 +13,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByEmail(String email);
 
-    @Query("SELECT u FROM User u WHERE u.isActive = true")
-    List<User> findAllActiveUsers();
-
-    boolean existsByEmail(String email);
+    List<User> findAllByKeycloakUserIdIn(List<String> keycloakIds);
 
     boolean existsByKeycloakUserIdOrEmail(String keycloakUserId, String email);
 

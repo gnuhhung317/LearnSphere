@@ -24,12 +24,21 @@ data:
         }
       }
 
-      # Keycloak (HTTP)
+      # Redirect HTTP to HTTPS
+      server {
+        listen 80;
+        server_name _;
+        return 301 https://$host$request_uri;
+      }
+
+      # HTTPS Keycloak
       upstream keycloak_upstream {
         server keycloak.studyhub-dev.svc.cluster.local:8080;
       }
       server {
-        listen 8080;
+        listen 443 ssl;
+        ssl_certificate /etc/nginx/nginx.crt;
+        ssl_certificate_key /etc/nginx/nginx.key;
         location / {
           proxy_set_header Host $host;
           proxy_set_header X-Real-IP $remote_addr;
@@ -39,12 +48,14 @@ data:
         }
       }
 
-      # MinIO Console (HTTP, port 9001)
+      # HTTPS MinIO Console
       upstream minio_console_upstream {
         server minio.studyhub-dev.svc.cluster.local:9001;
       }
       server {
-        listen 9001;
+        listen 9443 ssl;
+        ssl_certificate /etc/nginx/nginx.crt;
+        ssl_certificate_key /etc/nginx/nginx.key;
         location / {
           proxy_set_header Host $host;
           proxy_set_header X-Real-IP $remote_addr;
@@ -54,12 +65,14 @@ data:
         }
       }
 
-      # Zipkin (HTTP, 9411)
+      # HTTPS Zipkin
       upstream zipkin_upstream {
         server zipkin.studyhub-dev.svc.cluster.local:9411;
       }
       server {
-        listen 9411;
+        listen 9441 ssl;
+        ssl_certificate /etc/nginx/nginx.crt;
+        ssl_certificate_key /etc/nginx/nginx.key;
         location / {
           proxy_set_header Host $host;
           proxy_set_header X-Real-IP $remote_addr;
@@ -69,6 +82,150 @@ data:
         }
       }
     }
+
+    # TCP stream passthrough cho các protocol không-HTTP
+    stream {
+      # Postgres (user-db 5432)
+      upstream pg_user {
+        server postgres-user-db.studyhub-dev.svc.cluster.local:5432;
+      }
+      server {
+        listen 5432;
+        proxy_pass pg_user;
+      }
+
+      # Postgres (chat-db 5433)
+      upstream pg_chat {
+        server postgres-chat-db.studyhub-dev.svc.cluster.local:5433;
+      }
+      server {
+        listen 5433;
+        proxy_pass pg_chat;
+      }
+
+      # RabbitMQ AMQP (5672)
+      upstream amqp_upstream {
+        server rabbitmq.studyhub-dev.svc.cluster.local:5672;
+      }
+      server {
+        listen 5672;
+        proxy_pass amqp_upstream;
+      }
+
+      # Redis (6379)
+      upstream redis_upstream {
+        server redis.studyhub-dev.svc.cluster.local:6379;
+      }
+      server {
+        listen 6379;
+        proxy_pass redis_upstream;
+      }
+
+      # MinIO S3 API (9000)
+      upstream minio_api_upstream {
+        server minio.studyhub-dev.svc.cluster.local:9000;
+      }
+      server {
+        listen 9000;
+        proxy_pass minio_api_upstream;
+      }
+
+      # RabbitMQ Management UI (15672) — là HTTP nhưng để đơn giản vẫn passthrough TCP
+      upstream rabbit_ui_upstream {
+        server rabbitmq.studyhub-dev.svc.cluster.local:15672;
+      }
+      server {
+        listen 15672;
+        proxy_pass rabbit_ui_upstream;
+      }
+
+      # (Tùy chọn) Zipkin qua stream cũng được, nhưng đã có HTTP block trên 9411 rồi.
+    }
+  nginx.crt: |
+    -----BEGIN CERTIFICATE-----
+    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
+    -----END CERTIFICATE-----
+  nginx.key: |
+    -----BEGIN PRIVATE KEY-----
+    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
+    -----END PRIVATE KEY-----
 
     # TCP stream passthrough cho các protocol không-HTTP
     stream {
@@ -148,9 +305,10 @@ spec:
           image: nginx:1.25-alpine
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 8080   # keycloak http
-            - containerPort: 9001   # minio console
-            - containerPort: 9411   # zipkin http
+            - containerPort: 80    # HTTP redirect
+            - containerPort: 443   # HTTPS keycloak
+            - containerPort: 9443  # HTTPS minio console
+            - containerPort: 9441  # HTTPS zipkin
             - containerPort: 5432   # pg user
             - containerPort: 5433   # pg chat
             - containerPort: 5672   # amqp
@@ -162,6 +320,12 @@ spec:
             - name: nginx-conf
               mountPath: /etc/nginx/nginx.conf
               subPath: nginx.conf
+            - name: nginx-crt
+              mountPath: /etc/nginx/nginx.crt
+              subPath: nginx.crt
+            - name: nginx-key
+              mountPath: /etc/nginx/nginx.key
+              subPath: nginx.key
           readinessProbe:
             httpGet:
               path: /nginx_status
@@ -181,6 +345,18 @@ spec:
             items:
               - key: nginx.conf
                 path: nginx.conf
+        - name: nginx-crt
+          configMap:
+            name: edge-nginx-conf
+            items:
+              - key: nginx.crt
+                path: nginx.crt
+        - name: nginx-key
+          configMap:
+            name: edge-nginx-conf
+            items:
+              - key: nginx.key
+                path: nginx.key
 ---
 # nginx-svc.yaml
 apiVersion: v1
@@ -197,15 +373,18 @@ spec:
   selector:
     app: edge-nginx
   ports:
-    - name: keycloak
-      port: 8080
-      targetPort: 8080
-    - name: minio-console
-      port: 9001
-      targetPort: 9001
-    - name: zipkin
-      port: 9411
-      targetPort: 9411
+    - name: http
+      port: 80
+      targetPort: 80
+    - name: https-keycloak
+      port: 443
+      targetPort: 443
+    - name: https-minio-console
+      port: 9443
+      targetPort: 9443
+    - name: https-zipkin
+      port: 9441
+      targetPort: 9441
     - name: pg-user
       port: 5432
       targetPort: 5432

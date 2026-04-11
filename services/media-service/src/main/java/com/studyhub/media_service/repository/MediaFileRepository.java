@@ -14,4 +14,16 @@ public interface MediaFileRepository extends JpaRepository<MediaFile, String> {
     List<MediaFile> findByFileType(MediaFile.FileType fileType);
 
     List<MediaFile> findByStatus(MediaFile.FileStatus status);
+
+    List<MediaFile> findByRoomIdOrderByUploadedAtDesc(Long roomId);
+
+    List<MediaFile> findByRoomIdAndFileTypeOrderByUploadedAtDesc(Long roomId, MediaFile.FileType fileType);
+
+    List<MediaFile> findByOriginalFilenameContainingIgnoreCaseAndUploadedBy(String originalFilename, String uploadedBy);
+
+    List<MediaFile> findTop5ByUploadedByOrderByUploadedAtDesc(String uploadedBy);
+
+    List<MediaFile> findByParentIdIsNullAndUploadedByOrderByUploadedAtDesc(String uploadedBy);
+
+    List<MediaFile> findByParentIdAndUploadedByOrderByUploadedAtDesc(String parentId, String uploadedBy);
 }

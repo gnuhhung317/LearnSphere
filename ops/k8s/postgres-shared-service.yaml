@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-shared-db
+  namespace: studyhub-dev
+spec:
+  # title: Postgres Shared DB Service
+  selector:
+    app: postgres-shared
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432

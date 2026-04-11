@@ -1,6 +1,7 @@
 package com.studyhub.user_service.mapper;
 
 import com.studyhub.user_service.dto.*;
+import com.studyhub.user_service.dto.UserInfo;
 import com.studyhub.user_service.entity.LearningPath;
 import com.studyhub.user_service.entity.User;
 import com.studyhub.user_service.entity.UserStats;
@@ -28,7 +29,6 @@ public interface UserMapper {
     @Mapping(target = "user", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
        @Mapping(target = "updatedAt", ignore = true)
-
     void updateUserStatsFromDto(UpdateStatsRequest dto, @MappingTarget UserStats userStats);
 
     
@@ -55,4 +55,11 @@ public interface UserMapper {
     @Mapping(source = "userStats", target = "stats")
     @Mapping(source = "learningPaths", target = "learningPaths")
     UserProfileViewResponse toProfileViewResponse(User user);
+
+    @Mapping(source = "email", target = "username")
+    @Mapping(source = "fullName", target = "fullName")
+    @Mapping(source = "userProfile.avatarUrl", target = "avatarUrl")
+    @Mapping(source = "keycloakUserId", target = "id")
+    UserInfo toUserBasic(User user);
+    List<UserInfo> toUserBasicList(List<User> users);
 }

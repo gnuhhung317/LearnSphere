@@ -1,0 +1,131 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: studyhub-ingress
+  namespace: studyhub-dev
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+spec:
+  ingressClassName: nginx
+  rules:
+    # Keycloak - Authentication Service
+    - host: keycloak.studyhub.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak
+                port:
+                  number: 8080
+
+    # MinIO API - Object Storage
+    - host: minio-api.studyhub.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: minio
+                port:
+                  number: 9000
+
+    # MinIO Console - Web UI
+    - host: minio-console.studyhub.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: minio
+                port:
+                  number: 9001
+
+    # RabbitMQ Management UI
+    - host: rabbitmq.studyhub.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rabbitmq
+                port:
+                  number: 15672
+
+    # Eureka Server - Service Discovery
+    - host: eureka.studyhub.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: studyhub-eureka-server
+                port:
+                  number: 8761
+---
+# Alternative: Single host with path-based routing
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: studyhub-ingress-path-based
+  namespace: studyhub-dev
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: studyhub.local
+      http:
+        paths:
+          # Keycloak
+          - path: /auth(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: keycloak
+                port:
+                  number: 8080
+
+          # MinIO Console
+          - path: /minio-console(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: minio
+                port:
+                  number: 9001
+
+          # MinIO API
+          - path: /minio-api(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: minio
+                port:
+                  number: 9000
+
+          # RabbitMQ Management
+          - path: /rabbitmq(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: rabbitmq
+                port:
+                  number: 15672
+
+          # Eureka Server - Service Discovery
+          - path: /eureka(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: studyhub-eureka-server
+                port:
+                  number: 8761

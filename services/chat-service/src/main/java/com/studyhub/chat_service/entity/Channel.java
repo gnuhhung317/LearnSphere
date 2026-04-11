@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "channels")
@@ -22,6 +24,9 @@ public class Channel {
     @JoinColumn(name = "room_id")
     private Room room;
 
+    @Builder.Default
+    @OneToMany(mappedBy = "channel", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Message> messages = new ArrayList<>();
 
     @Column(name = "name", nullable = false)
     private String name;

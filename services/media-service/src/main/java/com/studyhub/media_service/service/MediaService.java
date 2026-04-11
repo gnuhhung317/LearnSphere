@@ -31,4 +31,44 @@ public interface MediaService {
      * Stream file content from storage
      */
     InputStream getFileContent(String fileId) throws Exception;
+
+    /**
+     * Store file with room context
+     */
+    MediaFile storeFileInRoom(MultipartFile file, String uploadedBy, Long roomId) throws Exception;
+
+    /**
+     * Get all files uploaded to a room
+     */
+    java.util.List<MediaFile> getRoomFiles(Long roomId);
+
+    /**
+     * Get files by room and type
+     */
+    java.util.List<MediaFile> getRoomFilesByType(Long roomId, MediaFile.FileType fileType);
+
+    /**
+     * Get all files uploaded by a specific user
+     */
+    java.util.List<MediaFile> getUserFiles(String uploadedBy);
+
+    /**
+     * Search files by filename
+     */
+    java.util.List<MediaFile> searchFiles(String query, String uploadedBy);
+
+    /**
+     * Get recent files uploaded by user
+     */
+    java.util.List<MediaFile> getRecentFiles(String uploadedBy);
+
+    /**
+     * Create a new folder
+     */
+    MediaFile createFolder(String name, String parentId, String createdBy);
+
+    /**
+     * Get folder contents
+     */
+    java.util.List<MediaFile> getFolderContents(String folderId, String uploadedBy);
 }

@@ -1,0 +1,74 @@
+  server:
+    port: 8086
+
+  spring:
+    cloud:
+      openfeign:
+        httpclient:
+          hc5:
+            enabled: true
+    application:
+      name: ai-service
+    
+    profiles:
+      active: dev
+
+    datasource:
+      url: jdbc:postgresql://localhost:5432/ai_service_db
+      username: user
+      password: password
+      driver-class-name: org.postgresql.Driver
+    
+    kafka:
+      bootstrap-servers: localhost:9094
+      consumer:
+        group-id: ai-service-group
+        auto-offset-reset: earliest
+        key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+        value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+        properties:
+          spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+          spring.json.trusted.packages: "*"
+          spring.json.type.mapping: "com.studyhub.learningservice.event.ResourceAddedEvent:com.studyhub.ai_service.event.ResourceAddedEvent,com.studyhub.learningservice.event.ResourceDeletedEvent:com.studyhub.ai_service.event.ResourceDeletedEvent,com.studyhub.learningservice.event.LearningSpaceDeletedEvent:com.studyhub.ai_service.event.LearningSpaceDeletedEvent,com.studyhub.chat_service.event.FileSyncedEvent:com.studyhub.ai_service.event.FileSyncedEvent"
+    
+    jpa:
+      hibernate:
+        ddl-auto: update
+      show-sql: true
+      properties:
+        hibernate:
+          dialect: org.hibernate.dialect.PostgreSQLDialect
+          format_sql: true
+
+    security:
+      oauth2:
+        resourceserver:
+          jwt:
+            issuer-uri: http://keycloak.studyhub.local/realms/master
+
+    ai:
+      retry:
+        max-attempts: 3
+        backoff:
+          delay: 2000
+          multiplier: 2
+
+  logging:
+    level:
+      com.studyhub.ai_service: DEBUG
+      org.springframework.security: DEBUG
+      org.hibernate.SQL: DEBUG
+
+  management:
+    endpoints:
+      web:
+        exposure:
+          include: health,info,metrics,prometheus
+    endpoint:
+      health:
+        show-details: always
+
+  eureka:
+    client:
+      serviceUrl:
+        defaultZone: http://eureka:eureka@localhost:8761/eureka/

@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-scripts
+  namespace: studyhub-dev
+data:
+  init-db.sh: |
+    #!/bin/bash
+    set -e
+    
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+        CREATE DATABASE user_service_db;
+        CREATE DATABASE learning_service_db;
+        CREATE DATABASE media_service_db;
+        CREATE DATABASE realtime_service_db;
+        CREATE DATABASE chat_service_db;
+        CREATE DATABASE ai_service_db;
+        CREATE DATABASE auth_service_db;
+        CREATE DATABASE search_service_db;
+        GRANT ALL PRIVILEGES ON DATABASE user_service_db TO user;
+        GRANT ALL PRIVILEGES ON DATABASE learning_service_db TO user;
+        GRANT ALL PRIVILEGES ON DATABASE media_service_db TO user;
+        GRANT ALL PRIVILEGES ON DATABASE realtime_service_db TO user;
+        GRANT ALL PRIVILEGES ON DATABASE chat_service_db TO user;
+        GRANT ALL PRIVILEGES ON DATABASE ai_service_db TO user;
+        GRANT ALL PRIVILEGES ON DATABASE auth_service_db TO user;
+        GRANT ALL PRIVILEGES ON DATABASE search_service_db TO user;
+    EOSQL
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "ai_service_db" <<-EOSQL
+        CREATE EXTENSION IF NOT EXISTS vector;
+    EOSQL

@@ -111,7 +111,7 @@ public class RoutesConfig {
                 .uri("http://localhost:8083"))
                 // Chat Service WebSocket Route
                 .route("chat-service-ws", r -> r.path("/api/v1/chat/ws/**")
-                .filters(f -> f.rewritePath("/api/v1/chat/ws/(?<segment>.*)", "/ws/${segment}"))
+                .filters(f -> f.rewritePath("/api/v1/chat/ws(?<segment>.*)", "/ws${segment}"))
                 .metadata(RESPONSE_TIMEOUT_ATTR, 30000)
                 .metadata(CONNECT_TIMEOUT_ATTR, 5000)
                 .uri("http://localhost:8083"))
@@ -123,6 +123,12 @@ public class RoutesConfig {
                 .metadata(RESPONSE_TIMEOUT_ATTR, 30000)
                 .metadata(CONNECT_TIMEOUT_ATTR, 5000)
                 .uri("http://localhost:8084"))
+                // Real-time Service WebSocket Route
+                .route("realtime-service-ws", r -> r.path("/api/v1/realtime/ws/**")
+                .filters(f -> f.rewritePath("/api/v1/realtime/ws(?<segment>.*)", "/ws${segment}"))
+                .metadata(RESPONSE_TIMEOUT_ATTR, 30000)
+                .metadata(CONNECT_TIMEOUT_ATTR, 5000)
+                .uri("http://localhost:8085"))
                 // Real-time Service Routes
                 .route("realtime-service", r -> r.path("/api/v1/realtime/**")
                 .filters(f -> f
@@ -183,7 +189,7 @@ public class RoutesConfig {
                 .uri("http://chat-service:8083"))
                 // Chat Service WebSocket Route
                 .route("chat-service-ws", r -> r.path("/api/v1/chat/ws/**")
-                .filters(f -> f.rewritePath("/api/v1/chat/ws/(?<segment>.*)", "/ws/${segment}"))
+                .filters(f -> f.rewritePath("/api/v1/chat/ws(?<segment>.*)", "/ws${segment}"))
                 .uri("http://chat-service:8083"))
                 // Media Service Routes  
                 .route("media-service", r -> r.path("/api/v1/media/**")
@@ -196,6 +202,10 @@ public class RoutesConfig {
                 .route("realtime-service", r -> r.path("/api/v1/realtime/**")
                 .filters(f -> f
                 .circuitBreaker(c -> c.setName("realtime-service").setFallbackUri("forward:/fallback/realtime")))
+                .uri("http://realtime-service:8085"))
+                // Real-time Service WebSocket Route
+                .route("realtime-service-ws", r -> r.path("/api/v1/realtime/ws/**")
+                .filters(f -> f.rewritePath("/api/v1/realtime/ws(?<segment>.*)", "/ws${segment}"))
                 .uri("http://realtime-service:8085"))
                 // AI Service Routes
                 .route("ai-service", r -> r.path("/api/v1/ai/**")

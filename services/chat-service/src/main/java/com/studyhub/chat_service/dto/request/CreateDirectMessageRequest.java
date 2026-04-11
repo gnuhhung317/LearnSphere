@@ -14,5 +14,5 @@ import lombok.NoArgsConstructor;
 public class CreateDirectMessageRequest {
 
     @NotNull(message = "Recipient user ID is required")
-    private Long recipientUserId;
+    private String recipientUserId;
 }

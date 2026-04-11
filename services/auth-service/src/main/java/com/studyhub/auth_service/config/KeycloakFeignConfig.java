@@ -1,21 +1,26 @@
 package com.studyhub.auth_service.config;
 
 import feign.auth.BasicAuthRequestInterceptor;
-import org.springframework.beans.factory.annotation.Value;
+import feign.codec.Encoder;
+import feign.form.FormEncoder;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
-@Configuration
 public class KeycloakFeignConfig {
 
-    @Value("${keycloak.client-id:studyhub-backend}")
-    private String clientId;
-
-    @Value("${keycloak.client-secret}")
-    private String clientSecret;
+    @Bean
+    public Encoder feignFormEncoder() {
+        return new FormEncoder();
+    }
 
     @Bean
-    public BasicAuthRequestInterceptor basicAuthRequestInterceptor() {
-        return new BasicAuthRequestInterceptor(clientId, clientSecret);
+    feign.Logger.Level feignLoggerLevel() {
+        return feign.Logger.Level.FULL;
     }
+
+    /*
+     * @Bean
+     * public BasicAuthRequestInterceptor basicAuthRequestInterceptor() {
+     * return new BasicAuthRequestInterceptor(clientId, clientSecret);
+     * }
+     */
 }

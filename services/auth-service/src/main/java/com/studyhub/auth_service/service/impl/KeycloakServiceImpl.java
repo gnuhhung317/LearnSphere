@@ -20,6 +20,7 @@ import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -30,7 +31,15 @@ public class KeycloakServiceImpl implements KeycloakService {
 
     private final Keycloak keycloak;
     private final KeycloakClient keycloakClient;
-    private String keycloakRealm = "studyhub";
+
+    @Value("${keycloak.realm}")
+    private String keycloakRealm;
+
+    @Value("${keycloak.client-id:studyhub-backend}")
+    private String clientId;
+
+    @Value("${keycloak.client-secret}")
+    private String clientSecret;
 
     @Override
     public CreateUserRequest createUser(RegisterRequest request) {
@@ -61,7 +70,8 @@ public class KeycloakServiceImpl implements KeycloakService {
         userRepresentation.setUsername(request.getEmail());
         userRepresentation.setEmail(request.getEmail());
         userRepresentation.setFirstName(request.getFullName().split(" ")[0]);
-        userRepresentation.setLastName(request.getFullName().substring(userRepresentation.getFirstName().length() + 1).strip());
+        userRepresentation
+                .setLastName(request.getFullName().substring(userRepresentation.getFirstName().length() + 1).strip());
         userRepresentation.setEnabled(true);
 
         CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
@@ -89,7 +99,16 @@ public class KeycloakServiceImpl implements KeycloakService {
 
     @Override
     public LoginResponse login(LoginRequest request) {
-        Map<String, String> form = Map.of("username", request.getEmail(), "password", request.getPassword(), "grant_type", "password", "scope", "email");
+        Map<String, String> form = new HashMap<>();
+        form.put("username", request.getEmail());
+        form.put("password", request.getPassword());
+        form.put("grant_type", "password");
+        form.put("scope", "email");
+        form.put("client_id", clientId);
+        form.put("client_secret", clientSecret);
+
+        // Map<String, String> form = Map.of("username", request.getEmail(), "password",
+        // request.getPassword(), "grant_type", "password", "scope", "email");
         try {
             AccessTokenResponse accessTokenResponse = keycloakClient.login(form);
             return LoginResponse.builder()
@@ -113,10 +132,11 @@ public class KeycloakServiceImpl implements KeycloakService {
 
     @Override
     public LoginResponse refreshToken(String refreshToken) {
-        Map<String, String> form = Map.of(
-                "grant_type", "refresh_token",
-                "refresh_token", refreshToken
-        );
+        Map<String, String> form = new HashMap<>();
+        form.put("grant_type", "refresh_token");
+        form.put("refresh_token", refreshToken);
+        form.put("client_id", clientId);
+        form.put("client_secret", clientSecret);
         try {
             AccessTokenResponse accessTokenResponse = keycloakClient.refreshToken(form);
             return LoginResponse.builder()

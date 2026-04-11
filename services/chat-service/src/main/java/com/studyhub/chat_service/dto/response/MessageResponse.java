@@ -33,7 +33,7 @@ public class MessageResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class SenderInfo {
-        private Long userId;
+        private String userId;
         private String username;
         private String fullName;
         private String avatarUrl;
@@ -43,9 +43,11 @@ public class MessageResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class AttachmentInfo {
+        private Long id;
         private String fileId;
         private String fileName;
         private String fileType;
         private Long fileSize;
+        private String aiStatus;
     }
 }

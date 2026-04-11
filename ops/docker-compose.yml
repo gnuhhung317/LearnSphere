@@ -46,6 +46,20 @@ services:
     networks:
       - studyhub-net
 
+  postgres-ai-db:
+    image: pgvector/pgvector:pg16
+    container_name: postgres-ai-db
+    environment:
+      - POSTGRES_DB=ai_service_db
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-ai-data:/var/lib/postgresql/data
+    networks:
+      - studyhub-net
+
   # # 3. Messaging
   # zookeeper:
   #   image: confluentinc/cp-zookeeper:7.5.3
@@ -73,6 +87,35 @@ services:
   #     KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
   #   networks:
   #     - studyhub-net
+
+  # 3. Messaging with Kafka (ENABLED)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.3
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - studyhub-net
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.3
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    networks:
+      - studyhub-net
 
   # rabbitmq:
   #   image: rabbitmq:3.13-management-alpine
@@ -127,4 +170,5 @@ networks:
 volumes:
   postgres-user-data:
   postgres-chat-data:
+  postgres-ai-data:
   minio-data:

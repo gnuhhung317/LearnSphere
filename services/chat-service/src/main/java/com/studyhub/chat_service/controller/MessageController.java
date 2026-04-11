@@ -25,12 +25,26 @@ public class MessageController {
 
     private final MessageService messageService;
 
+    @PostMapping
+    public ResponseEntity<ApiResponse<MessageResponse>> sendMessage(
+            @Valid @RequestBody com.studyhub.chat_service.dto.request.SendMessageRestRequest request,
+            org.springframework.security.core.Authentication authentication) {
+        String userId = JwtUtil.getUserIdFromJwt();
+        org.springframework.security.oauth2.jwt.Jwt jwt = (org.springframework.security.oauth2.jwt.Jwt) authentication
+                .getPrincipal();
+
+        log.info("POST /api/v1/messages - Sending message to room: {} by user: {}", request.getRoomId(), userId);
+
+        MessageResponse response = messageService.sendMessageRest(request, userId, jwt);
+        return ResponseEntity.ok(ApiResponse.success("Message sent successfully", response));
+    }
+
     @GetMapping("/channels/{channelId}")
     public ResponseEntity<ApiResponse<Page<MessageResponse>>> getMessageHistory(
             @PathVariable Long channelId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("GET /api/v1/messages/channels/{} - Getting history for user: {}", channelId, userId);
 
         Pageable pageable = PageRequest.of(page, size);
@@ -38,11 +52,24 @@ public class MessageController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    @GetMapping("/rooms/{roomId}")
+    public ResponseEntity<ApiResponse<Page<MessageResponse>>> getMessagesByRoom(
+            @PathVariable Long roomId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        String userId = JwtUtil.getUserIdFromJwt();
+        log.info("GET /api/v1/messages/rooms/{} - Getting history for user: {}", roomId, userId);
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<MessageResponse> response = messageService.getMessageHistory(roomId, userId, pageable);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
     @PutMapping("/{messageId}")
     public ResponseEntity<ApiResponse<MessageResponse>> editMessage(
             @PathVariable Long messageId,
             @Valid @RequestBody EditMessageRequest request) {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("PUT /api/v1/messages/{} - Editing by user: {}", messageId, userId);
 
         MessageResponse response = messageService.editMessage(messageId, request, userId);
@@ -51,7 +78,7 @@ public class MessageController {
 
     @DeleteMapping("/{messageId}")
     public ResponseEntity<ApiResponse<Void>> deleteMessage(@PathVariable Long messageId) {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("DELETE /api/v1/messages/{} - Deleting by user: {}", messageId, userId);
 
         messageService.deleteMessage(messageId, userId);
@@ -62,7 +89,7 @@ public class MessageController {
     public ResponseEntity<ApiResponse<Void>> addReaction(
             @PathVariable Long messageId,
             @Valid @RequestBody AddReactionRequest request) {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("POST /api/v1/messages/{}/reactions - User {} adding: {}", messageId, userId, request.getEmoji());
 
         messageService.addReaction(messageId, request, userId);
@@ -73,7 +100,7 @@ public class MessageController {
     public ResponseEntity<ApiResponse<Void>> removeReaction(
             @PathVariable Long messageId,
             @PathVariable String emoji) {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("DELETE /api/v1/messages/{}/reactions/{} - User {} removing", messageId, emoji, userId);
 
         messageService.removeReaction(messageId, emoji, userId);
@@ -82,7 +109,7 @@ public class MessageController {
 
     @PostMapping("/{messageId}/pin")
     public ResponseEntity<ApiResponse<MessageResponse>> pinMessage(@PathVariable Long messageId) {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("POST /api/v1/messages/{}/pin - Pinning by user: {}", messageId, userId);
 
         MessageResponse response = messageService.pinMessage(messageId, userId);
@@ -91,7 +118,7 @@ public class MessageController {
 
     @DeleteMapping("/{messageId}/pin")
     public ResponseEntity<ApiResponse<Void>> unpinMessage(@PathVariable Long messageId) {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("DELETE /api/v1/messages/{}/pin - Unpinning by user: {}", messageId, userId);
 
         messageService.unpinMessage(messageId, userId);
@@ -101,10 +128,29 @@ public class MessageController {
     @GetMapping("/rooms/{roomId}/pinned")
     public ResponseEntity<ApiResponse<List<MessageResponse>>> getPinnedMessages(
             @PathVariable Long roomId) {
-        Long userId = JwtUtil.getUserIdFromJwt();
+        String userId = JwtUtil.getUserIdFromJwt();
         log.info("GET /api/v1/messages/rooms/{}/pinned - Getting by user: {}", roomId, userId);
 
         List<MessageResponse> response = messageService.getPinnedMessages(roomId, userId);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    // Thread/Reply endpoints
+    @GetMapping("/{messageId}/replies")
+    public ResponseEntity<ApiResponse<List<MessageResponse>>> getThreadReplies(
+            @PathVariable Long messageId) {
+        String userId = JwtUtil.getUserIdFromJwt();
+        log.info("GET /api/v1/messages/{}/replies - Getting replies for user: {}", messageId, userId);
+
+        List<MessageResponse> response = messageService.getThreadReplies(messageId, userId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/{messageId}/reply-count")
+    public ResponseEntity<ApiResponse<Long>> getReplyCount(@PathVariable Long messageId) {
+        log.info("GET /api/v1/messages/{}/reply-count", messageId);
+
+        long count = messageService.getReplyCount(messageId);
+        return ResponseEntity.ok(ApiResponse.success(count));
     }
 }

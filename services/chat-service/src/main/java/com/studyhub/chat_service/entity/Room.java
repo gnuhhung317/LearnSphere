@@ -1,20 +1,18 @@
 package com.studyhub.chat_service.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Table(name = "rooms")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -31,33 +29,38 @@ public class Room {
     private String description;
 
     @Column(name = "creator_id", nullable = false)
-    private Long creatorId;
+    private String creatorId;
 
+    @Builder.Default
     @Column(name = "is_public")
     private Boolean isPublic = true;
 
-//    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
     @Column(name = "room_type", nullable = false)
-    private String roomType = RoomType.GROUP.toString();
+    private RoomType roomType = RoomType.GROUP;
 
     @Column(name = "invite_code", unique = true)
     private String inviteCode;
 
+    @Builder.Default
     @Column(name = "max_members")
     private Integer maxMembers = 50;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
 
     // Relationships
+    @Builder.Default
     @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RoomMember> members = new ArrayList<>();
 
+    @Builder.Default
     @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Channel> channels = new ArrayList<>();
 

@@ -1,0 +1,30 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: ai-service
+  
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://keycloak:8080/realms/master
+
+  ai:
+    google:
+      genai:
+        chat:
+          options:
+            model: gemini-2.5-flash-lite
+        api-key: ${GOOGLE_GENAI_API_KEY}
+        embedding:
+          api-key: ${GOOGLE_GENAI_API_KEY}
+        project-id: ${GOOGLE_GENAI_PROJECT_ID}
+        location: ${GOOGLE_GENAI_LOCATION}
+  kafka:
+    bootstrap-servers: kafka:9092
+
+eureka:
+  client:
+    enabled: false

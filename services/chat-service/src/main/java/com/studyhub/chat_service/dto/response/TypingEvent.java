@@ -13,7 +13,7 @@ import java.time.Instant;
 @Builder
 public class TypingEvent {
     
-    private Long userId;
+    private String userId;
     private String username;
     private Instant timestamp;
 }

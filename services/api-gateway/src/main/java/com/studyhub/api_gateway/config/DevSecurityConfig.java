@@ -12,6 +12,7 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.util.matcher.PathPatternParserServerWebExchangeMatcher;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter;
+import org.springframework.security.web.server.util.matcher.OrServerWebExchangeMatcher;
 
 /**
  * Security configuration for API Gateway - Development profile 
@@ -30,8 +31,11 @@ public class DevSecurityConfig {
     @Order(1)
     public SecurityWebFilterChain webSocketSecurityFilterChain(ServerHttpSecurity http) {
         return http
-                .securityMatcher(new PathPatternParserServerWebExchangeMatcher("/api/v1/chat/ws/**"))
-                .csrf(csrf -> csrf.disable())
+                .securityMatcher(new OrServerWebExchangeMatcher(
+                    new PathPatternParserServerWebExchangeMatcher("/api/v1/realtime/ws/**"),
+                    new PathPatternParserServerWebExchangeMatcher("/api/v1/chat/ws/**")
+                ))
+                .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .cors(withDefaults())
                 .authorizeExchange(exchanges -> exchanges
                     .anyExchange().permitAll()
@@ -47,7 +51,7 @@ public class DevSecurityConfig {
     @Order(2)
     public SecurityWebFilterChain apiSecurityFilterChain(ServerHttpSecurity http) {
         return http
-                .csrf(csrf -> csrf.disable())
+                .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .cors(withDefaults())
                 .authorizeExchange(exchanges -> exchanges
                 // Allow CORS preflight
@@ -58,14 +62,19 @@ public class DevSecurityConfig {
                         "/realms/**",
                         "/admin/**",
                         "/actuator/health",
-                        "/fallback/**"
+                        "/fallback/**",
+                        "/api/v1/realtime/**"
                 ).permitAll()
                 // Protected endpoints (require authentication)
                 .pathMatchers(
                         "/api/v1/users/**",
-                        "/api/v1/chat/v1/**", // Chat REST API requires auth
-                        "/api/v1/media/**"
+                        "/api/v1/chat/v1/**" // Chat REST API requires auth
                 ).authenticated()
+                .pathMatchers(
+                        "/api/v1/media/files/*/download",
+                        "/api/v1/media/variants/*/download"
+                ).permitAll()
+                .pathMatchers("/api/v1/media/**").authenticated()
                 .anyExchange().permitAll()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2

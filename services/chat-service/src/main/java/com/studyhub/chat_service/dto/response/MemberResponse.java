@@ -5,18 +5,18 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class MemberResponse {
-    
-    private Long userId;
+
+    private String userId;
     private String username;
     private String fullName;
     private String avatarUrl;
     private Boolean isOwner;
-    private LocalDateTime joinedAt;
+    private Instant joinedAt;
 }

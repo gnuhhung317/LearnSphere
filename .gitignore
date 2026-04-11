@@ -11,3 +11,13 @@ frontend/.env.local
 *.md
 *.txt
 *.jar
+
+# Build artifacts
+**/target/
+**/.settings/
+**/.classpath
+**/.project
+**/.factorypath
+**/.vscode/
+bin/
+build/
